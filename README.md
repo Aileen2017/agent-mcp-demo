@@ -31,3 +31,13 @@ npx @modelcontextprotocol/inspector --cli http://localhost:3000/mcp --transport 
 ## Connect Claude after deployment
 
 Deploy this app to an HTTPS-capable Python host, then add its `/mcp` URL under **Settings → Connectors → Add custom connector** in Claude. Before publicly sharing the connector, test the deployed endpoint with the MCP Inspector and Claude.
+
+## Pull request automation
+
+After committing [`.github/workflows/open-pull-request.yml`](.github/workflows/open-pull-request.yml)
+to `main`, enable **Settings → Actions → General → Workflow permissions → Allow GitHub
+Actions to create and approve pull requests** in the GitHub repository.
+
+Each successful CI run triggered by a push to a branch other than `main` then creates one
+open pull request into `main`. The workflow skips stale CI runs and branches that already
+have an open pull request.
