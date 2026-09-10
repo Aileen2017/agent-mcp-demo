@@ -19,10 +19,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@<FULL_COMMIT_SHA> # v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.1.1
 
       - name: Set up Python
-        uses: actions/setup-python@<FULL_COMMIT_SHA> # v5
+        uses: actions/setup-python@a26af69be93a79288629f7b838c0956d6ff7d8f7 # v5.0.0
         with:
           python-version: "3.13"
 
