@@ -1,4 +1,6 @@
 __pycache__/
 *.py[cod]
 .venv/
-/.github/skills
+.github/agents/
+.github/skills/
+.github/instructions/
