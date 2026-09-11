@@ -1,9 +1,11 @@
 <#
 .SYNOPSIS
-    Starts the flight and calendar MCP servers, then runs the holiday-planning agent.
+    Starts the flight and calendar MCP servers, then runs the holiday-planning agent
+    CLI, or (-Api) the HTTP API that receives REST/SSE calls.
 #>
 [CmdletBinding()]
 param(
+    [switch] $Api,
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]] $Request
 )
@@ -50,7 +52,13 @@ try {
         Write-Host "$($server.Name) is healthy."
     }
 
-    & $python -m agent.main @Request
+    if ($Api) {
+        Write-Host "Starting the agent API on http://127.0.0.1:8000 (Ctrl+C to stop)..."
+        & $python -m agent.api
+    }
+    else {
+        & $python -m agent.main @Request
+    }
 }
 finally {
     foreach ($process in $processes) {

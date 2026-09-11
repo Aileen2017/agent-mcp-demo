@@ -124,3 +124,51 @@ LangChain's `MCPAdapter` wraps MCP **tools** only. The agent therefore reads eac
 resources and prompts directly through a `fastmcp.Client` in
 [agent/context.py](agent/context.py) and folds them into the system prompt.
 
+### Call the agent over HTTP
+
+[agent/api.py](agent/api.py) exposes the agent as a small Starlette service so a web
+frontend can drive it. It is stateless: each request builds its own agent and its own
+independent MCP connections (via `ClientGroup`), so concurrent requests never share a
+session or leak state into one another.
+
+Start the two MCP servers, then the API:
+
+```powershell
+$env:AGENT_API_KEY = "choose-a-secret"   # required unless bound to loopback
+.\.venv\Scripts\python.exe servers\flight_server.py   # in its own terminal
+.\.venv\Scripts\python.exe servers\calendar_server.py # in its own terminal
+.\.venv\Scripts\python.exe -m agent.api               # serves on 127.0.0.1:8000
+```
+
+| Endpoint | Method | Returns |
+| --- | --- | --- |
+| `/health` | GET | `{"status":"ok"}` (no key required) |
+| `/chat` | POST | one JSON answer: `{answer, steps, booking_reference, event_id}` |
+| `/chat/stream` | POST | `text/event-stream` with `step`, `token`, `done`, and `error` events |
+
+```powershell
+$body = '{"request":"Book me 5 nights in Barcelona in three weeks and add it to my calendar"}'
+curl -H "X-API-Key: choose-a-secret" -H "Content-Type: application/json" -d $body http://127.0.0.1:8000/chat
+curl -N -H "X-API-Key: choose-a-secret" -H "Content-Type: application/json" -d $body http://127.0.0.1:8000/chat/stream
+```
+
+Basic hardening is built in: an API key (`X-API-Key`, constant-time compared), a per-IP
+in-memory rate limit, a request-body size cap, an input-length cap, a per-request timeout,
+a strict CORS allowlist, and generic error responses that carry a correlation id while the
+detail stays in the server log. Configure it with these environment variables:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `AGENT_API_KEY` | _(empty)_ | Required on `/chat*`. If empty and bound to loopback, the API runs unauthenticated with a warning; if empty and bound to a non-loopback host, the API refuses to start. |
+| `AGENT_API_HOST` / `AGENT_API_PORT` | `127.0.0.1` / `8000` | Bind address. |
+| `AGENT_ALLOWED_ORIGINS` | `http://localhost:5173` | Comma-separated CORS allowlist (never `*`). |
+| `AGENT_RATE_LIMIT_PER_MINUTE` | `10` | Requests per client IP per minute. |
+| `AGENT_MAX_REQUEST_CHARS` | `2000` | Max characters in the `request` field. |
+| `AGENT_REQUEST_TIMEOUT_SECONDS` | `120` | Per-request agent timeout. |
+
+The rate limit is per process; a multi-worker deployment would need a shared store. These
+endpoints reach tools that mutate state (`book_flight`, `create_event`), and the data is
+all mock data — treat the tool-side `ToolError` validation as the real defense, since LLM
+output is untrusted.
+
+

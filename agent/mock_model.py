@@ -6,7 +6,6 @@ each call's arguments from the previous tool's result rather than from an LLM.
 
 from __future__ import annotations
 
-import json
 import re
 from datetime import date, timedelta
 from typing import Any, Sequence
@@ -15,6 +14,9 @@ from langchain_core.callbacks import CallbackManagerForLLMRun
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, ToolMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
+
+from agent.tool_results import base_tool_name as _base_name
+from agent.tool_results import parse_tool_content as _parse_result
 
 CITY_CODES: dict[str, str] = {
     "london": "LHR",
@@ -32,35 +34,6 @@ DEFAULT_DESTINATION = "BCN"
 DEFAULT_LEAD_DAYS = 21
 DEFAULT_NIGHTS = 5
 DEFAULT_PASSENGER = "Jane Doe"
-
-
-def _parse_result(content: Any) -> dict[str, Any]:
-    """Normalize a tool result to a dict, unwrapping MCP content-block lists."""
-    if isinstance(content, dict):
-        return content
-    if isinstance(content, str):
-        try:
-            return _parse_result(json.loads(content))
-        except json.JSONDecodeError:
-            return {}
-    if isinstance(content, list):
-        for item in content:
-            nested = item.get("text") if isinstance(item, dict) and "text" in item else item
-            parsed = _parse_result(nested)
-            if parsed:
-                return parsed
-    return {}
-
-
-def _base_name(name: str | None) -> str:
-    """Strip the MCPAdapter server prefix, e.g. flights_search_flights -> search_flights."""
-    if not name:
-        return ""
-    for known in ("search_flights", "get_flight", "book_flight", "get_booking",
-                  "list_events", "check_availability", "create_event", "delete_event"):
-        if name.endswith(known):
-            return known
-    return name
 
 
 class HolidayRequest:
