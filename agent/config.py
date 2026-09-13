@@ -10,6 +10,12 @@ CALENDAR_SERVER_URL = os.getenv("CALENDAR_MCP_URL", "http://127.0.0.1:3002/mcp")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:8b")
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
 
+# Used when AGENT_MODEL=bedrock. AWS_REGION is also read by boto3 for credentials.
+BEDROCK_MODEL_ID = os.getenv(
+    "BEDROCK_MODEL_ID", "eu.anthropic.claude-3-5-sonnet-20240620-v1:0"
+)
+AWS_REGION = os.getenv("AWS_REGION", "eu-west-2")
+
 # Set AGENT_MODEL=mock to run the scripted stand-in instead of Ollama.
 AGENT_MODEL = os.getenv("AGENT_MODEL", "ollama").strip().lower()
 

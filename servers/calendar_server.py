@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from datetime import date, timedelta
 from typing import Any
 
@@ -10,6 +11,7 @@ from fastmcp.exceptions import ResourceError, ToolError
 from starlette.requests import Request as StarletteRequest
 from starlette.responses import JSONResponse
 
+SERVER_HOST = os.getenv("MCP_HOST", "127.0.0.1")
 SERVER_PORT = 3002
 MAX_RANGE_DAYS = 365
 
@@ -241,4 +243,4 @@ async def health_check(_: StarletteRequest) -> JSONResponse:
 
 
 if __name__ == "__main__":
-    mcp.run(transport="http", host="127.0.0.1", port=SERVER_PORT)
+    mcp.run(transport="http", host=SERVER_HOST, port=SERVER_PORT)

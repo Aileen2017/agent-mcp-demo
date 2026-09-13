@@ -1,0 +1,21 @@
+# Copy to terraform.tfvars and adjust. Do not commit terraform.tfvars.
+
+aws_region  = "eu-west-2"
+project     = "mcp-demo"
+environment = "dev"
+
+# Build and push the image to the ECR repo (see the ecr_repository_url output),
+# then set the tag you pushed.
+image_tag = "latest"
+
+# Model backend for the agent. Requires Claude 3.5 Sonnet access enabled in
+# Bedrock for this account/region (Bedrock console -> Model access).
+agent_model      = "bedrock"
+bedrock_model_id = "eu.anthropic.claude-3-5-sonnet-20240620-v1:0"
+
+# CORS origins the agent API accepts (never "*").
+allowed_origins = "https://your-frontend.example.com"
+
+# Leave empty for a dev HTTP listener on port 80. For anything real, supply an
+# ACM certificate ARN in eu-west-2 to serve HTTPS on 443.
+acm_certificate_arn = ""

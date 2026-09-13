@@ -7,7 +7,13 @@ from typing import Any, AsyncIterator
 
 from langchain_core.messages import AIMessage, AIMessageChunk, ToolMessage
 
-from agent.config import AGENT_MODEL, OLLAMA_BASE_URL, OLLAMA_MODEL
+from agent.config import (
+    AGENT_MODEL,
+    AWS_REGION,
+    BEDROCK_MODEL_ID,
+    OLLAMA_BASE_URL,
+    OLLAMA_MODEL,
+)
 from agent.deps import build_client_group, get_system_prompt
 from agent.mock_model import MockToolCallingModel
 from agent.tool_results import parse_tool_content
@@ -19,6 +25,13 @@ warnings.filterwarnings("ignore", message=r".*`langchain\.mcp` is in beta.*")
 def _build_model() -> Any:
     if AGENT_MODEL == "mock":
         return MockToolCallingModel()
+
+    if AGENT_MODEL == "bedrock":
+        from langchain_aws import ChatBedrockConverse
+
+        return ChatBedrockConverse(
+            model=BEDROCK_MODEL_ID, region_name=AWS_REGION, temperature=0
+        )
 
     from langchain_ollama import ChatOllama
 
