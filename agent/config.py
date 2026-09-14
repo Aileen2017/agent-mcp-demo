@@ -12,7 +12,7 @@ OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
 
 # Used when AGENT_MODEL=bedrock. AWS_REGION is also read by boto3 for credentials.
 BEDROCK_MODEL_ID = os.getenv(
-    "BEDROCK_MODEL_ID", "eu.anthropic.claude-3-5-sonnet-20240620-v1:0"
+    "BEDROCK_MODEL_ID", "eu.anthropic.claude-sonnet-4-5-20250929-v1:0"
 )
 AWS_REGION = os.getenv("AWS_REGION", "eu-west-2")
 

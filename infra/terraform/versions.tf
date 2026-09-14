@@ -12,13 +12,6 @@ terraform {
     }
   }
 
-  # Configure remote state before sharing this with a team.
-  # backend "s3" {
-  #   bucket = "my-tfstate-bucket"
-  #   key    = "mcp-demo/terraform.tfstate"
-  #   region = "eu-west-2"
-  # }
-
 backend "s3" {
   bucket       = "mcp-demo-tfstate-730335559354"
   key          = "mcp-demo/terraform.tfstate"

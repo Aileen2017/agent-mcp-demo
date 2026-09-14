@@ -11,7 +11,7 @@ image_tag = "latest"
 # Model backend for the agent. Requires Claude 3.5 Sonnet access enabled in
 # Bedrock for this account/region (Bedrock console -> Model access).
 agent_model      = "bedrock"
-bedrock_model_id = "eu.anthropic.claude-3-5-sonnet-20240620-v1:0"
+bedrock_model_id = "eu.anthropic.claude-sonnet-4-5-20250929-v1:0"
 
 # CORS origins the agent API accepts (never "*").
 allowed_origins = "https://your-frontend.example.com"

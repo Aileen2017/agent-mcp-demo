@@ -65,8 +65,8 @@ resource "aws_iam_role_policy" "agent_bedrock" {
         "bedrock:InvokeModelWithResponseStream"
       ]
       Resource = [
-        "arn:aws:bedrock:*::foundation-model/anthropic.claude-3-5-sonnet-*",
-        "arn:aws:bedrock:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:inference-profile/eu.anthropic.claude-3-5-sonnet-*"
+        "arn:aws:bedrock:*::foundation-model/anthropic.claude-sonnet-4-5-*",
+        "arn:aws:bedrock:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:inference-profile/eu.anthropic.claude-sonnet-4-5-*"
       ]
     }]
   })

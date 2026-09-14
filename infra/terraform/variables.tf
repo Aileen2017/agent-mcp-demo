@@ -48,7 +48,7 @@ variable "agent_model" {
 variable "bedrock_model_id" {
   description = "Bedrock model or inference-profile ID for the agent."
   type        = string
-  default     = "eu.anthropic.claude-3-5-sonnet-20240620-v1:0"
+  default     = "eu.anthropic.claude-sonnet-4-5-20250929-v1:0"
 }
 
 variable "allowed_origins" {
