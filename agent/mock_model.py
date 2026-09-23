@@ -17,6 +17,7 @@ from langchain_core.outputs import ChatGeneration, ChatResult
 
 from agent.tool_results import base_tool_name as _base_name
 from agent.tool_results import parse_tool_content as _parse_result
+from agent.config import ALLOW_CONFLICTS
 
 CITY_CODES: dict[str, str] = {
     "london": "LHR",
@@ -181,7 +182,7 @@ class MockToolCallingModel(BaseChatModel):
                     "start_date": request.depart_date,
                     "end_date": request.return_date,
                     "notes": f"Flight booking {booking.get('booking_reference')}",
-                    "allow_conflict": not availability.get("available", True),
+                    "allow_conflict": ALLOW_CONFLICTS,
                 },
             )
 

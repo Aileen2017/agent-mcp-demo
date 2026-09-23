@@ -3,11 +3,11 @@
     {
       "name": "Default",
       "files": [
-        "infra/terraform/plan1",
+        "agent/mock_model.py",
         ".vscode/changelists.json",
-        "run_demo.ps1",
-        ".vscode/launch.json",
-        "call_calendar.ps1"
+        "agent/context.py",
+        "agent/main_new.py",
+        "agent/config.py"
       ]
     }
   ],

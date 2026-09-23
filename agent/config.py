@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 
+ALLOW_CONFLICTS = os.getenv("AGENT_ALLOW_CONFLICTS", "false").strip().lower() == "true"
 FLIGHT_SERVER_URL = os.getenv("FLIGHT_MCP_URL", "http://127.0.0.1:3001/mcp")
 CALENDAR_SERVER_URL = os.getenv("CALENDAR_MCP_URL", "http://127.0.0.1:3002/mcp")
 
