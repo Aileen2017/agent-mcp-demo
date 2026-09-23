@@ -4,3 +4,5 @@ __pycache__/
 .github/agents/
 .github/skills/
 .github/instructions/
+infra/terraform/plan1
+infra/terraform/plan2

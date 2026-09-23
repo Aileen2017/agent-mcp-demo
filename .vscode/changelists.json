@@ -3,14 +3,11 @@
     {
       "name": "Default",
       "files": [
-        "infra/build_and_push.ps1",
-        "infra/terraform/versions.tf",
+        "infra/terraform/plan1",
         ".vscode/changelists.json",
-        "infra/test.ps1",
-        "agent/config.py",
-        "infra/terraform/iam.tf",
-        "infra/terraform/terraform.tfvars.example",
-        "infra/terraform/variables.tf"
+        ".vscode/settings.json",
+        ".vscode/launch.json",
+        ".gitignore"
       ]
     }
   ],
