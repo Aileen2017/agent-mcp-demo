@@ -8,7 +8,7 @@ os.environ.setdefault("AGENT_MODEL", "mock")
 import pytest
 
 from agent.deps import build_client_group, reset_system_prompt_cache
-from agent.graph import run_agent
+from agent.graph import resume_agent, run_agent
 from servers.calendar_server import mcp as calendar_mcp
 from servers.flight_server import mcp as flight_mcp
 
@@ -27,9 +27,14 @@ async def test_concurrent_runs_do_not_share_sessions() -> None:
         for city in destinations
     ]
 
-    results = await asyncio.gather(
-        *(run_agent(req, target=build_client_group(flight_mcp, calendar_mcp)) for req in requests)
-    )
+    async def run_confirming_clashes(request: str) -> dict:
+        target = build_client_group(flight_mcp, calendar_mcp)
+        result = await run_agent(request, target=target)
+        while result["status"] == "needs_input":
+            result = await resume_agent(result["thread_id"], True, target=target)
+        return result
+
+    results = await asyncio.gather(*(run_confirming_clashes(req) for req in requests))
 
     references = [r["booking_reference"] for r in results]
     event_ids = [r["event_id"] for r in results]

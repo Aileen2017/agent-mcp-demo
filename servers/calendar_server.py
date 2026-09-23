@@ -6,14 +6,24 @@ import os
 from datetime import date, timedelta
 from typing import Any
 
-from fastmcp import FastMCP
+from fastmcp import Context, FastMCP
 from fastmcp.exceptions import ResourceError, ToolError
+from mcp.types import (
+    ClientCapabilities,
+    ElicitationCapability,
+    ElicitRequest,
+    ElicitRequestFormParams,
+    ElicitResult,
+    InputRequiredResult,
+)
+from mcp.types.version import MODERN_PROTOCOL_VERSIONS
 from starlette.requests import Request as StarletteRequest
 from starlette.responses import JSONResponse
 
 SERVER_HOST = os.getenv("MCP_HOST", "127.0.0.1")
 SERVER_PORT = 3002
 MAX_RANGE_DAYS = 365
+CONFIRM_CONFLICT_KEY = "confirm_conflict"
 
 CALENDAR_CONFIG: dict[str, Any] = {
     "owner": "Jane Doe",
@@ -86,6 +96,47 @@ def _overlapping(start: date, end: date) -> list[dict[str, Any]]:
     return matches
 
 
+def _can_ask_user(ctx: Context) -> bool:
+    """True when the client can answer a question mid-call (2026-07-28 input-required flow)."""
+    request = ctx.request_context
+    if request is None or request.protocol_version not in MODERN_PROTOCOL_VERSIONS:
+        return False
+    return ctx.session.check_client_capability(
+        ClientCapabilities(elicitation=ElicitationCapability())
+    )
+
+
+def _ask_to_confirm_conflict(title: str, conflicts: list[dict[str, Any]]) -> InputRequiredResult:
+    clashing = "; ".join(
+        f"{event['title']} ({event['start_date']} to {event['end_date']})" for event in conflicts
+    )
+    question = ElicitRequest(
+        params=ElicitRequestFormParams(
+            message=f"'{title}' clashes with: {clashing}. Add it to the calendar anyway?",
+            requested_schema={
+                "type": "object",
+                "properties": {
+                    "add_anyway": {
+                        "type": "boolean",
+                        "title": "Add anyway",
+                        "description": "Yes to add the event despite the clash, no to cancel.",
+                    }
+                },
+                "required": ["add_anyway"],
+            },
+        )
+    )
+    return InputRequiredResult(input_requests={CONFIRM_CONFLICT_KEY: question})
+
+
+def _user_confirmed(answer: Any) -> bool:
+    return (
+        isinstance(answer, ElicitResult)
+        and answer.action == "accept"
+        and bool((answer.content or {}).get("add_anyway"))
+    )
+
+
 @mcp.tool(
     annotations={
         "title": "List calendar events",
@@ -136,11 +187,16 @@ def create_event(
     title: str,
     start_date: str,
     end_date: str,
+    ctx: Context,
     notes: str | None = None,
     all_day: bool = True,
     allow_conflict: bool = False,
-) -> dict[str, Any]:
-    """Block out dates in the calendar and return the new event id."""
+) -> dict[str, Any] | InputRequiredResult:
+    """Block out dates in the calendar and return the new event id.
+
+    On a clash the user is asked whether to add the event anyway. If they say no,
+    nothing is created and the result has created=false.
+    """
     clean_title = title.strip()
     if not clean_title:
         raise ToolError("title must not be empty.")
@@ -148,10 +204,22 @@ def create_event(
     start, end = _parse_range(start_date, end_date)
     conflicts = _overlapping(start, end)
     if conflicts and not allow_conflict:
-        clashing = ", ".join(event["title"] for event in conflicts)
-        raise ToolError(
-            f"The range clashes with: {clashing}. Retry with allow_conflict=true to book anyway."
-        )
+        if not _can_ask_user(ctx):
+            clashing = ", ".join(event["title"] for event in conflicts)
+            raise ToolError(
+                f"The range clashes with: {clashing}. "
+                "Retry with allow_conflict=true to book anyway."
+            )
+
+        answers = ctx.input_responses
+        if answers is None or CONFIRM_CONFLICT_KEY not in answers:
+            return _ask_to_confirm_conflict(clean_title, conflicts)
+        if not _user_confirmed(answers[CONFIRM_CONFLICT_KEY]):
+            return {
+                "created": False,
+                "reason": "The user chose not to add an event that clashes with the calendar.",
+                "conflicts": conflicts,
+            }
 
     event_id = f"EVT-{len(_EVENTS) + 1:06d}"
     event = {
@@ -163,7 +231,7 @@ def create_event(
         "notes": notes,
     }
     _EVENTS[event_id] = event
-    return event
+    return {**event, "created": True}
 
 
 @mcp.tool(
@@ -228,8 +296,8 @@ def holiday_brief(destination: str, depart_date: str, return_date: str) -> str:
     return (
         f"Block out a holiday to {destination} from {depart_date} to {return_date}.\n"
         "1. Call check_availability for the full range before creating anything.\n"
-        "2. If conflicts are reported, name them and ask whether to proceed rather than "
-        "silently setting allow_conflict.\n"
+        "2. If conflicts are reported, still call create_event without allow_conflict: "
+        "it asks the user whether to add the event anyway.\n"
         "3. Call create_event with a title of the form 'Holiday: <destination>' and put "
         "the flight booking reference in notes.\n"
         "4. Report the returned event id verbatim; never invent one."

@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import sys
 
-from agent.graph import run_agent
+from agent.graph import resume_agent, run_agent
 
 DEFAULT_REQUEST = (
     "Find me a flight from London to Barcelona in three weeks for 5 nights, "
@@ -19,15 +19,28 @@ def _describe(step: dict) -> str:
     return f"  <- {step['tool']}: {str(step['result'])[:300]}"
 
 
+def _ask(question: dict) -> bool:
+    print(f"\n{question['message']}")
+    try:
+        reply = input("Continue? [y/N] ")
+    except EOFError:
+        reply = ""
+    return reply.strip().lower() in ("y", "yes")
+
+
 async def main() -> int:
     request = " ".join(sys.argv[1:]).strip() or DEFAULT_REQUEST
     print(f"Request: {request}\n")
 
     try:
         result = await run_agent(request)
+        while result["status"] == "needs_input":
+            result = await resume_agent(result["thread_id"], _ask(result["question"]))
     except RuntimeError as error:
         print(f"Error: {error}", file=sys.stderr)
         return 1
+
+    print()
 
     for step in result["steps"]:
         print(_describe(step))

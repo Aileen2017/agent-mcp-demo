@@ -36,38 +36,122 @@ def test_health_needs_no_api_key(client: TestClient) -> None:
     assert response.json() == {"status": "ok"}
 
 @pytest.mark.skip(reason="allow_conflict now comes from AGENT_ALLOW_CONFLICTS (default false)")
-def test_chat_books_a_flight_and_creates_an_event(client: TestClient) -> None:
-    response = client.post("/chat", json={"request": REQUEST}, headers=HEADERS)
+def _tools_called(body: dict) -> list[str]:
+    return [step["tool"] for step in body["steps"] if step["kind"] == "tool_call"]
 
-    assert response.status_code == 200
-    body = response.json()
-    assert body["booking_reference"].startswith("FL-")
-    assert body["event_id"].startswith("EVT-")
-    assert body["answer"]
-    tools = [step["tool"] for step in body["steps"] if step["kind"] == "tool_call"]
-    assert tools == [
-        "flights_search_flights",
-        "flights_book_flight",
-        "calendar_check_availability",
-        "calendar_create_event",
+
+def _sse_events(raw: str) -> list[tuple[str, dict]]:
+    blocks = [block for block in raw.split("\n\n") if block.strip()]
+    return [
+        (
+            block.splitlines()[0].removeprefix("event: "),
+            json.loads(block.splitlines()[1].removeprefix("data: ")),
+        )
+        for block in blocks
     ]
 
 
-@pytest.mark.skip(reason="allow_conflict now comes from AGENT_ALLOW_CONFLICTS (default false)")
-def test_chat_stream_emits_steps_then_done(client: TestClient) -> None:
+def test_chat_without_a_clash_books_a_flight_and_creates_an_event(client: TestClient) -> None:
+    request = "Fly from London to Paris in 30 days for 2 nights for Jane Doe"
+    response = client.post("/chat", json={"request": request}, headers=HEADERS)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "done"
+    assert body["question"] is None
+    assert body["booking_reference"].startswith("FL-")
+    assert body["event_id"].startswith("EVT-")
+    assert body["answer"]
+    assert _tools_called(body) == [
+        "flights_search_flights",
+        "calendar_check_availability",
+        "calendar_create_event",
+        "flights_book_flight",
+    ]
+
+
+def test_clash_pauses_for_the_user_then_books_when_confirmed(client: TestClient) -> None:
+    # REQUEST's dates overlap the seeded dentist appointment.
+    paused = client.post("/chat", json={"request": REQUEST}, headers=HEADERS).json()
+
+    assert paused["status"] == "needs_input"
+    assert "Dentist appointment" in paused["question"]["message"]
+    assert paused["booking_reference"] is None
+
+    response = client.post(
+        "/chat/resume", json={"thread_id": paused["thread_id"], "confirm": True}, headers=HEADERS
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "done"
+    assert body["booking_reference"].startswith("FL-")
+    assert body["event_id"].startswith("EVT-")
+    assert _tools_called(body)[-1] == "flights_book_flight"
+
+
+def test_clash_declined_by_the_user_books_nothing(client: TestClient) -> None:
+    paused = client.post("/chat", json={"request": REQUEST}, headers=HEADERS).json()
+
+    body = client.post(
+        "/chat/resume", json={"thread_id": paused["thread_id"], "confirm": False}, headers=HEADERS
+    ).json()
+
+    assert body["status"] == "done"
+    assert body["booking_reference"] is None
+    assert body["event_id"] is None
+    assert "flights_book_flight" not in _tools_called(body)
+    assert "Nothing was booked" in body["answer"]
+
+
+def test_resuming_an_unknown_or_finished_thread_is_404(client: TestClient) -> None:
+    unknown = client.post(
+        "/chat/resume", json={"thread_id": "no-such-thread", "confirm": True}, headers=HEADERS
+    )
+    assert unknown.status_code == 404
+
+    paused = client.post("/chat", json={"request": REQUEST}, headers=HEADERS).json()
+    resume = {"thread_id": paused["thread_id"], "confirm": False}
+    assert client.post("/chat/resume", json=resume, headers=HEADERS).status_code == 200
+    assert client.post("/chat/resume", json=resume, headers=HEADERS).status_code == 404
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [{}, {"thread_id": "abc"}, {"thread_id": "abc", "confirm": "yes"}, {"confirm": True}],
+)
+def test_invalid_resume_payloads_are_rejected(client: TestClient, payload: dict) -> None:
+    response = client.post("/chat/resume", json=payload, headers=HEADERS)
+
+    assert response.status_code == 400
+
+
+def test_chat_stream_pauses_with_a_question_then_resumes(client: TestClient) -> None:
     with client.stream(
         "POST", "/chat/stream", json={"request": REQUEST}, headers=HEADERS
     ) as response:
         assert response.status_code == 200
         assert response.headers["content-type"].startswith("text/event-stream")
-        raw = "".join(response.iter_text())
+        events = _sse_events("".join(response.iter_text()))
 
-    events = [block for block in raw.split("\n\n") if block.strip()]
-    names = [block.splitlines()[0].removeprefix("event: ") for block in events]
+    names = [name for name, _ in events]
     assert "step" in names
+    assert "input_required" in names
     assert names[-1] == "done"
+    paused = events[-1][1]
+    assert paused["status"] == "needs_input"
 
-    done = json.loads(events[-1].splitlines()[1].removeprefix("data: "))
+    with client.stream(
+        "POST",
+        "/chat/resume/stream",
+        json={"thread_id": paused["thread_id"], "confirm": True},
+        headers=HEADERS,
+    ) as response:
+        events = _sse_events("".join(response.iter_text()))
+
+    name, done = events[-1]
+    assert name == "done"
+    assert done["status"] == "done"
     assert done["booking_reference"].startswith("FL-")
     assert done["event_id"].startswith("EVT-")
 

@@ -72,7 +72,7 @@ Override the defaults with `OLLAMA_MODEL` and `OLLAMA_BASE_URL` if needed.
 
 Set `AGENT_MODEL=mock` to swap `ChatOllama` for the scripted model in
 [agent/mock_model.py](agent/mock_model.py). It replays the same
-search, book, check availability, create event sequence, deriving each call's
+search, check availability, create event, book sequence, deriving each call's
 arguments from the previous tool's result instead of from an LLM. Useful for
 exercising the MCP wiring end to end with no model installed.
 
@@ -143,14 +143,37 @@ $env:AGENT_API_KEY = "choose-a-secret"   # required unless bound to loopback
 | Endpoint | Method | Returns |
 | --- | --- | --- |
 | `/health` | GET | `{"status":"ok"}` (no key required) |
-| `/chat` | POST | one JSON answer: `{answer, steps, booking_reference, event_id}` |
-| `/chat/stream` | POST | `text/event-stream` with `step`, `token`, `done`, and `error` events |
+| `/chat` | POST | one JSON answer: `{status, answer, steps, booking_reference, event_id, thread_id, question}` |
+| `/chat/stream` | POST | `text/event-stream` with `step`, `token`, `input_required`, `done`, and `error` events |
+| `/chat/resume` | POST | answers a paused run: body `{"thread_id": "...", "confirm": true}`; same response as `/chat` |
+| `/chat/resume/stream` | POST | the same, streamed like `/chat/stream` |
 
 ```powershell
 $body = '{"request":"Book me 5 nights in Barcelona in three weeks and add it to my calendar"}'
 curl -H "X-API-Key: choose-a-secret" -H "Content-Type: application/json" -d $body http://127.0.0.1:8000/chat
 curl -N -H "X-API-Key: choose-a-secret" -H "Content-Type: application/json" -d $body http://127.0.0.1:8000/chat/stream
 ```
+
+#### Calendar clashes
+
+If the holiday overlaps an existing calendar event, `create_event` on the calendar server
+asks the user whether to add it anyway, using MCP elicitation (the 2026-07-28
+input-required flow). The agent pauses: the response has `"status": "needs_input"`, a
+`question.message`, and a `thread_id`. Resume with `confirm: true` to add the event and
+book the flight, or `confirm: false` to cancel; nothing is booked on a cancel, because
+the calendar step runs before `book_flight`.
+
+```powershell
+$r = Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/chat -ContentType 'application/json' -Body $body
+$r.question.message
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/chat/resume -ContentType 'application/json' `
+  -Body (@{ thread_id = $r.thread_id; confirm = $true } | ConvertTo-Json)
+```
+
+The CLI (`python -m agent.main`) asks `Continue? [y/N]` in the terminal instead. Paused
+runs are kept in memory, so restarting the API forgets them. MCP clients that can't
+answer questions (older protocol versions, or no elicitation support) get the previous
+behaviour: a `ToolError` telling them to retry with `allow_conflict=true`.
 
 Basic hardening is built in: an API key (`X-API-Key`, constant-time compared), a per-IP
 in-memory rate limit, a request-body size cap, an input-length cap, a per-request timeout,

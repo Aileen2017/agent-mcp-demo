@@ -96,7 +96,7 @@ class HolidayRequest:
 
 
 class MockToolCallingModel(BaseChatModel):
-    """Replays a fixed search -> book -> check -> schedule sequence."""
+    """Replays a fixed search -> check -> schedule -> book sequence."""
 
     tool_names: list[str] = []
 
@@ -157,17 +157,6 @@ class MockToolCallingModel(BaseChatModel):
             )
 
         cheapest = flights[0]
-        if "book_flight" not in results:
-            return self._call(
-                "book_flight",
-                {
-                    "flight_id": cheapest["flight_id"],
-                    "passenger_name": request.passenger,
-                    "passengers": 1,
-                },
-            )
-
-        booking = results["book_flight"]
         if "check_availability" not in results:
             return self._call(
                 "check_availability",
@@ -176,6 +165,7 @@ class MockToolCallingModel(BaseChatModel):
 
         availability = results["check_availability"]
         if "create_event" not in results:
+            # Never force a clash: the calendar server asks the user instead.
             return self._call(
                 "create_event",
                 {
@@ -188,6 +178,26 @@ class MockToolCallingModel(BaseChatModel):
             )
 
         event = results["create_event"]
+        if not event.get("event_id"):
+            return AIMessage(
+                content=(
+                    f"Cancelled: the trip from {request.origin} to {request.destination} "
+                    f"({request.depart_date} to {request.return_date}) clashes with your "
+                    "calendar and you chose not to add it. Nothing was booked."
+                )
+            )
+
+        if "book_flight" not in results:
+            return self._call(
+                "book_flight",
+                {
+                    "flight_id": cheapest["flight_id"],
+                    "passenger_name": request.passenger,
+                    "passengers": 1,
+                },
+            )
+
+        booking = results["book_flight"]
         conflicts = availability.get("conflicts") or []
         clash_note = (
             f" Note: this clashes with {', '.join(c['title'] for c in conflicts)}."

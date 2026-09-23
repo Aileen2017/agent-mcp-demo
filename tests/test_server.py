@@ -7,7 +7,7 @@ from urllib.error import HTTPError, URLError
 import pytest
 from fastmcp.exceptions import ToolError
 
-import server
+import scripts.server as server
 
 
 def _mock_json_response(payload: str):

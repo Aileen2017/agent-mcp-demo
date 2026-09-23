@@ -70,7 +70,66 @@ async def test_create_event_blocks_the_range_and_then_reports_it_busy() -> None:
     assert created.data["event_id"] in {event["event_id"] for event in listed.data["events"]}
 
 
+def _answering(add_anyway: bool) -> tuple[Client, list[str]]:
+    """A client that answers the clash question with add_anyway, recording what it was asked."""
+    asked: list[str] = []
+
+    async def handler(message: str, response_type: type, params: object, context: object):
+        asked.append(message)
+        return {"add_anyway": add_anyway}
+
+    return Client(mcp, elicitation_handler=handler), asked
+
+
+async def test_clash_asks_the_user_and_adds_the_event_when_confirmed() -> None:
+    client, asked = _answering(True)
+    async with client:
+        created = await client.call_tool(
+            "create_event",
+            {"title": "Holiday: Paris", "start_date": BUSY_START, "end_date": BUSY_END},
+        )
+        await client.call_tool("delete_event", {"event_id": created.data["event_id"]})
+
+    assert created.data["created"] is True
+    assert len(asked) == 1
+    assert "Quarterly planning offsite" in asked[0]
+
+
+async def test_clash_declined_by_the_user_creates_nothing() -> None:
+    client, asked = _answering(False)
+    async with client:
+        before = await client.call_tool(
+            "list_events", {"start_date": BUSY_START, "end_date": BUSY_END}
+        )
+        result = await client.call_tool(
+            "create_event",
+            {"title": "Holiday: Paris", "start_date": BUSY_START, "end_date": BUSY_END},
+        )
+        after = await client.call_tool(
+            "list_events", {"start_date": BUSY_START, "end_date": BUSY_END}
+        )
+
+    assert asked
+    assert result.data["created"] is False
+    assert result.data["conflicts"][0]["title"] == "Quarterly planning offsite"
+    assert after.data["total_found"] == before.data["total_found"]
+
+
+async def test_no_question_when_the_range_is_free() -> None:
+    start = (TODAY + timedelta(days=200)).isoformat()
+    client, asked = _answering(False)
+    async with client:
+        created = await client.call_tool(
+            "create_event", {"title": "Holiday: Rome", "start_date": start, "end_date": start}
+        )
+        await client.call_tool("delete_event", {"event_id": created.data["event_id"]})
+
+    assert asked == []
+    assert created.data["created"] is True
+
+
 async def test_create_event_refuses_a_clash_unless_allowed() -> None:
+    # A client that cannot answer questions gets the old error instead.
     async with Client(mcp) as client:
         with pytest.raises(ToolError, match="Quarterly planning offsite"):
             await client.call_tool(

@@ -77,16 +77,11 @@ def test_first_turn_searches_flights() -> None:
     assert call["args"]["depart_date"] == (date.today() + timedelta(weeks=2)).isoformat()
 
 
-def test_full_sequence_books_then_checks_then_schedules() -> None:
+def test_full_sequence_checks_then_schedules_then_books() -> None:
     model = _model()
     messages = [HumanMessage("Fly from London to Barcelona in 3 weeks for 5 nights")]
 
     messages += [AIMessage(""), _tool_message("flights_search_flights", {"flights": [FLIGHT]})]
-    book = model.invoke(messages)
-    assert book.tool_calls[0]["name"] == "flights_book_flight"
-    assert book.tool_calls[0]["args"]["flight_id"] == FLIGHT["flight_id"]
-
-    messages += [AIMessage(""), _tool_message("flights_book_flight", BOOKING)]
     check = model.invoke(messages)
     assert check.tool_calls[0]["name"] == "calendar_check_availability"
 
@@ -98,37 +93,65 @@ def test_full_sequence_books_then_checks_then_schedules() -> None:
     args = create.tool_calls[0]["args"]
     assert create.tool_calls[0]["name"] == "calendar_create_event"
     assert args["title"] == "Holiday: BCN"
-    assert args["notes"] == "Flight booking FL-000001"
+    assert FLIGHT["flight_id"] in args["notes"]
     assert args["allow_conflict"] is False
 
-    messages += [AIMessage(""), _tool_message("calendar_create_event", {"event_id": "EVT-000004"})]
+    messages += [
+        AIMessage(""),
+        _tool_message("calendar_create_event", {"event_id": "EVT-000004", "created": True}),
+    ]
+    book = model.invoke(messages)
+    assert book.tool_calls[0]["name"] == "flights_book_flight"
+    assert book.tool_calls[0]["args"]["flight_id"] == FLIGHT["flight_id"]
+
+    messages += [AIMessage(""), _tool_message("flights_book_flight", BOOKING)]
     final = model.invoke(messages)
     assert final.tool_calls == []
     assert "FL-000001" in final.content
     assert "EVT-000004" in final.content
 
 
-@pytest.mark.skip(reason="allow_conflict now comes from AGENT_ALLOW_CONFLICTS (default false)")
-def test_conflicting_dates_are_forced_and_reported() -> None:
-    model = _model()
-    conflict = {"title": "Quarterly planning offsite"}
-    messages = [
+def _clashing_history() -> list:
+    return [
         HumanMessage("Fly from London to Barcelona in 3 weeks for 5 nights"),
         AIMessage(""),
         _tool_message("flights_search_flights", {"flights": [FLIGHT]}),
         AIMessage(""),
-        _tool_message("flights_book_flight", BOOKING),
-        AIMessage(""),
         _tool_message(
-            "calendar_check_availability", {"available": False, "conflicts": [conflict]}
+            "calendar_check_availability",
+            {"available": False, "conflicts": [{"title": "Quarterly planning offsite"}]},
         ),
     ]
 
-    create = model.invoke(messages)
-    assert create.tool_calls[0]["args"]["allow_conflict"] is True
 
-    messages += [AIMessage(""), _tool_message("calendar_create_event", {"event_id": "EVT-000005"})]
+def test_conflicting_dates_are_never_forced() -> None:
+    create = _model().invoke(_clashing_history())
+
+    assert create.tool_calls[0]["name"] == "calendar_create_event"
+    assert create.tool_calls[0]["args"]["allow_conflict"] is False
+
+
+def test_confirmed_clash_books_and_reports_the_conflict() -> None:
+    model = _model()
+    messages = _clashing_history() + [
+        AIMessage(""),
+        _tool_message("calendar_create_event", {"event_id": "EVT-000005", "created": True}),
+    ]
+    assert model.invoke(messages).tool_calls[0]["name"] == "flights_book_flight"
+
+    messages += [AIMessage(""), _tool_message("flights_book_flight", BOOKING)]
     assert "Quarterly planning offsite" in model.invoke(messages).content
+
+
+def test_declined_clash_stops_without_booking() -> None:
+    messages = _clashing_history() + [
+        AIMessage(""),
+        _tool_message("calendar_create_event", {"created": False, "reason": "declined"}),
+    ]
+
+    reply = _model().invoke(messages)
+    assert reply.tool_calls == []
+    assert "Nothing was booked" in reply.content
 
 
 def test_empty_search_results_stop_without_booking() -> None:

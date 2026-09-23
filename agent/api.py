@@ -1,7 +1,12 @@
 """HTTP API in front of the holiday-planning agent.
 
-POST /chat        -> one JSON answer
-POST /chat/stream -> server-sent events as the agent works
+POST /chat               -> one JSON answer
+POST /chat/stream        -> server-sent events as the agent works
+POST /chat/resume        -> answer a paused run's question, one JSON answer
+POST /chat/resume/stream -> the same, as server-sent events
+
+A run pauses with status "needs_input" when a tool asks the user something (for example
+a calendar clash). Resume it with {"thread_id": "...", "confirm": true | false}.
 """
 
 from __future__ import annotations
@@ -14,7 +19,7 @@ import secrets
 import time
 import uuid
 from collections import defaultdict, deque
-from typing import Any, AsyncIterator
+from typing import Any, AsyncIterator, Awaitable, Callable
 
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
@@ -35,7 +40,7 @@ from agent.config import (
     is_loopback,
 )
 from agent.deps import get_system_prompt
-from agent.graph import run_agent, stream_agent
+from agent.graph import UnknownThread, resume_agent, run_agent, stream_agent
 
 logger = logging.getLogger("agent.api")
 
@@ -73,7 +78,7 @@ def _check_api_key(request: Request) -> None:
         raise RequestRejected(401, "Missing or invalid API key.")
 
 
-async def _read_request_text(request: Request) -> str:
+async def _read_json(request: Request) -> dict[str, Any]:
     body = await request.body()
     if len(body) > MAX_BODY_BYTES:
         raise RequestRejected(413, f"Request body must be under {MAX_BODY_BYTES} bytes.")
@@ -84,7 +89,11 @@ async def _read_request_text(request: Request) -> str:
         raise RequestRejected(400, "Body must be valid JSON.") from error
     if not isinstance(payload, dict):
         raise RequestRejected(400, "Body must be a JSON object.")
+    return payload
 
+
+async def _read_request_text(request: Request) -> str:
+    payload = await _read_json(request)
     text = payload.get("request")
     if not isinstance(text, str) or not text.strip():
         raise RequestRejected(400, "Field 'request' is required and must be a non-empty string.")
@@ -94,10 +103,27 @@ async def _read_request_text(request: Request) -> str:
     return text.strip()
 
 
+async def _read_resume(request: Request) -> tuple[str, bool]:
+    payload = await _read_json(request)
+    thread_id = payload.get("thread_id")
+    confirm = payload.get("confirm")
+    if not isinstance(thread_id, str) or not thread_id.strip() or len(thread_id) > 100:
+        raise RequestRejected(400, "Field 'thread_id' is required and must be a string.")
+    if not isinstance(confirm, bool):
+        raise RequestRejected(400, "Field 'confirm' is required and must be true or false.")
+    return thread_id.strip(), confirm
+
+
 async def _guard(request: Request) -> str:
     _check_api_key(request)
     _check_rate_limit(_client_ip(request))
     return await _read_request_text(request)
+
+
+async def _guard_resume(request: Request) -> tuple[str, bool]:
+    _check_api_key(request)
+    _check_rate_limit(_client_ip(request))
+    return await _read_resume(request)
 
 
 def _error(status: int, message: str, correlation_id: str) -> JSONResponse:
@@ -119,8 +145,26 @@ async def chat(request: Request) -> Response:
     except RequestRejected as rejected:
         return _error(rejected.status, rejected.message, correlation_id)
 
+    return await _respond(lambda: run_agent(text), correlation_id)
+
+
+async def chat_resume(request: Request) -> Response:
+    correlation_id = str(uuid.uuid4())
     try:
-        result = await asyncio.wait_for(run_agent(text), timeout=REQUEST_TIMEOUT_SECONDS)
+        thread_id, confirm = await _guard_resume(request)
+    except RequestRejected as rejected:
+        return _error(rejected.status, rejected.message, correlation_id)
+
+    return await _respond(lambda: resume_agent(thread_id, confirm), correlation_id)
+
+
+async def _respond(
+    run: Callable[[], Awaitable[dict[str, Any]]], correlation_id: str
+) -> Response:
+    try:
+        result = await asyncio.wait_for(run(), timeout=REQUEST_TIMEOUT_SECONDS)
+    except UnknownThread as missing:
+        return _error(404, str(missing), correlation_id)
     except asyncio.TimeoutError:
         logger.warning("Agent run timed out", extra={"correlation_id": correlation_id})
         return _error(504, "The agent took too long to respond.", correlation_id)
@@ -142,11 +186,31 @@ async def chat_stream(request: Request) -> Response:
     except RequestRejected as rejected:
         return _error(rejected.status, rejected.message, correlation_id)
 
+    return _event_stream(lambda: stream_agent(text), correlation_id)
+
+
+async def chat_resume_stream(request: Request) -> Response:
+    correlation_id = str(uuid.uuid4())
+    try:
+        thread_id, confirm = await _guard_resume(request)
+    except RequestRejected as rejected:
+        return _error(rejected.status, rejected.message, correlation_id)
+
+    return _event_stream(
+        lambda: stream_agent(None, thread_id=thread_id, confirmed=confirm), correlation_id
+    )
+
+
+def _event_stream(
+    run: Callable[[], AsyncIterator[dict[str, Any]]], correlation_id: str
+) -> StreamingResponse:
     async def events() -> AsyncIterator[str]:
         try:
             async with asyncio.timeout(REQUEST_TIMEOUT_SECONDS):
-                async for event in stream_agent(text):
+                async for event in run():
                     yield _sse(event["event"], event["data"])
+        except UnknownThread as missing:
+            yield _sse("error", {"error": str(missing)})
         except asyncio.TimeoutError:
             logger.warning("Agent stream timed out", extra={"correlation_id": correlation_id})
             yield _sse("error", {"error": "The agent took too long to respond."})
@@ -189,6 +253,8 @@ def create_app() -> Starlette:
             Route("/health", health, methods=["GET"]),
             Route("/chat", chat, methods=["POST"]),
             Route("/chat/stream", chat_stream, methods=["POST"]),
+            Route("/chat/resume", chat_resume, methods=["POST"]),
+            Route("/chat/resume/stream", chat_resume_stream, methods=["POST"]),
         ],
         middleware=[
             Middleware(
