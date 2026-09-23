@@ -10,6 +10,96 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal"
+        },
+        {
+            "name": "Flight server (3001)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/servers/flight_server.py",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Calendar server (3002)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/servers/calendar_server.py",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Agent API (8000, mock model)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "agent.api",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "env": {
+                "AGENT_MODEL": "mock",
+                // Long timeout so sitting on a breakpoint doesn't turn into a 504.
+                "AGENT_REQUEST_TIMEOUT_SECONDS": "3600"
+            }
+        },
+        {
+            "name": "Agent CLI (mock model)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "agent.main",
+            "args": ["${input:agentRequest}"],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "env": {
+                "AGENT_MODEL": "mock"
+            }
+        },
+        {
+            "name": "PowerShell: Current File",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "${file}",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "PowerShell: call_calendar.ps1 (custom args)",
+            "type": "PowerShell",
+            "request": "launch",
+            "script": "${workspaceFolder}/call_calendar.ps1",
+            "args": ["${input:calendarArgs}"],
+            "cwd": "${workspaceFolder}"
+        }
+    ],
+    "compounds": [
+        {
+            "name": "Servers + Agent API",
+            "configurations": [
+                "Flight server (3001)",
+                "Calendar server (3002)",
+                "Agent API (8000, mock model)"
+            ],
+            "stopAll": true
+        },
+        {
+            "name": "Servers + Agent CLI",
+            "configurations": [
+                "Flight server (3001)",
+                "Calendar server (3002)",
+                "Agent CLI (mock model)"
+            ],
+            "stopAll": true
+        }
+    ],
+    "inputs": [
+        {
+            "id": "agentRequest",
+            "type": "promptString",
+            "description": "Request to send to the agent",
+            "default": "Fly from London to Paris in 2 weeks for 3 nights for John Smith"
+        },
+        {
+            "id": "calendarArgs",
+            "type": "promptString",
+            "description": "Arguments for call_calendar.ps1",
+            "default": "-Tool check_availability -Arguments @{ start_date = '2026-10-03'; end_date = '2026-10-05' }"
         }
     ]
 }

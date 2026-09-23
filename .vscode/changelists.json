@@ -5,9 +5,9 @@
       "files": [
         "infra/terraform/plan1",
         ".vscode/changelists.json",
-        ".vscode/settings.json",
+        "run_demo.ps1",
         ".vscode/launch.json",
-        ".gitignore"
+        "call_calendar.ps1"
       ]
     }
   ],

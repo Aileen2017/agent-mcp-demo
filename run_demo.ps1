@@ -3,13 +3,14 @@
     Starts the flight and calendar MCP servers, then runs the holiday-planning agent
     CLI, or (-Api) the HTTP API that receives REST/SSE calls.
 #>
+
 [CmdletBinding()]
 param(
     [switch] $Api,
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]] $Request
 )
-
+$env:AGENT_MODEL = "mock"
 $ErrorActionPreference = 'Stop'
 $python = Join-Path $PSScriptRoot '.venv\Scripts\python.exe'
 if (-not (Test-Path $python)) {
