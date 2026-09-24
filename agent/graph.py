@@ -5,6 +5,8 @@ from __future__ import annotations
 import warnings
 from typing import Any, AsyncIterator
 
+from langgraph.graph.state import CompiledStateGraph
+
 from langchain_core.messages import AIMessage, AIMessageChunk, ToolMessage
 
 from agent.config import (
@@ -38,7 +40,7 @@ def _build_model() -> Any:
     return ChatOllama(model=OLLAMA_MODEL, base_url=OLLAMA_BASE_URL, temperature=0)
 
 
-async def build_agent(target: Any = None, system_prompt: str | None = None) -> Any:
+async def build_agent(target: Any = None, system_prompt: str | None = None) -> CompiledStateGraph:
     """Discover tools from both MCP servers and return a ready-to-invoke agent."""
     from langchain.agents import create_agent
     from langchain.mcp import MCPAdapter

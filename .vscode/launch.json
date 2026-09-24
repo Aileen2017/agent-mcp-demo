@@ -34,6 +34,8 @@
             "module": "agent.api",
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
+            // Allow breakpoints inside langchain/langgraph/fastmcp in .venv.
+            "justMyCode": false,
             "env": {
                 "AGENT_MODEL": "mock",
                 // Long timeout so sitting on a breakpoint doesn't turn into a 504.
@@ -48,6 +50,7 @@
             "args": ["${input:agentRequest}"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
+            "justMyCode": false,
             "env": {
                 "AGENT_MODEL": "mock"
             }
