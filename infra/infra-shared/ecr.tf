@@ -25,7 +25,3 @@ resource "aws_ecr_lifecycle_policy" "app" {
     ]
   })
 }
-
-locals {
-  container_image = "${aws_ecr_repository.app.repository_url}:${var.image_tag}"
-}

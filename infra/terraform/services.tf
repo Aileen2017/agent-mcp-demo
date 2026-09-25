@@ -9,7 +9,7 @@ module "flights" {
   cpu                = var.task_cpu
   memory             = var.task_memory
   desired_count      = var.mcp_desired_count
-  subnet_ids         = aws_subnet.public[*].id
+  subnet_ids         = data.aws_subnets.public.ids
   security_group_ids = [aws_security_group.mcp.id]
   execution_role_arn = aws_iam_role.execution.arn
   log_group_name     = aws_cloudwatch_log_group.flights.name
@@ -33,7 +33,7 @@ module "calendar" {
   cpu                = var.task_cpu
   memory             = var.task_memory
   desired_count      = var.mcp_desired_count
-  subnet_ids         = aws_subnet.public[*].id
+  subnet_ids         = data.aws_subnets.public.ids
   security_group_ids = [aws_security_group.mcp.id]
   execution_role_arn = aws_iam_role.execution.arn
   log_group_name     = aws_cloudwatch_log_group.calendar.name
@@ -57,7 +57,7 @@ module "agent" {
   cpu                = var.task_cpu
   memory             = var.task_memory
   desired_count      = var.agent_desired_count
-  subnet_ids         = aws_subnet.public[*].id
+  subnet_ids         = data.aws_subnets.public.ids
   security_group_ids = [aws_security_group.agent.id]
   execution_role_arn = aws_iam_role.execution.arn
   task_role_arn      = aws_iam_role.agent_task.arn

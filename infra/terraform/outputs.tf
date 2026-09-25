@@ -1,6 +1,6 @@
 output "ecr_repository_url" {
   description = "Push the container image here before applying services."
-  value       = aws_ecr_repository.app.repository_url
+  value       = data.aws_ecr_repository.app.repository_url
 }
 
 output "aws_region" {

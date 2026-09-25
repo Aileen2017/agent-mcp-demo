@@ -2,7 +2,7 @@
 resource "aws_security_group" "alb" {
   name_prefix = "${var.project}-${var.environment}-alb-"
   description = "ALB ingress from the internet."
-  vpc_id      = aws_vpc.main.id
+  vpc_id      = data.aws_vpc.main.id
 
   ingress {
     description = "HTTP"
@@ -34,7 +34,7 @@ resource "aws_security_group" "alb" {
 resource "aws_security_group" "agent" {
   name_prefix = "${var.project}-${var.environment}-agent-"
   description = "Agent API tasks."
-  vpc_id      = aws_vpc.main.id
+  vpc_id      = data.aws_vpc.main.id
 
   ingress {
     description     = "Agent API from ALB"
@@ -58,7 +58,7 @@ resource "aws_security_group" "agent" {
 resource "aws_security_group" "mcp" {
   name_prefix = "${var.project}-${var.environment}-mcp-"
   description = "Flight and calendar MCP servers."
-  vpc_id      = aws_vpc.main.id
+  vpc_id      = data.aws_vpc.main.id
 
   ingress {
     description     = "MCP ports from agent"

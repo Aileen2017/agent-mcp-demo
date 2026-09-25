@@ -2,14 +2,14 @@ resource "aws_lb" "agent" {
   name               = "${var.project}-${var.environment}-alb"
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
-  subnets            = aws_subnet.public[*].id
+  subnets            = data.aws_subnets.public.ids
 }
 
 resource "aws_lb_target_group" "agent" {
   name        = "${var.project}-${var.environment}-agent"
   port        = 8000
   protocol    = "HTTP"
-  vpc_id      = aws_vpc.main.id
+  vpc_id      = data.aws_vpc.main.id
   target_type = "ip"
 
   health_check {
