@@ -1,4 +1,4 @@
-name: Infra
+name: AgentDemo-Infra
 
 on:
   push:
@@ -12,6 +12,7 @@ on:
         description: "Image tag to deploy, for example dev-<commit sha>"
         required: false
         default: "latest"
+
 
 permissions:
   contents: read
@@ -28,7 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     # Required reviewers on this environment (repo Settings -> Environments) pause the run
     # until a maintainer approves it.
-    environment: infra-dev
+    environment: infra-nonprod
     permissions:
       contents: read
     defaults:
@@ -49,7 +50,7 @@ jobs:
           # Keys of the mcp-demo-github-actions IAM user, which can only assume the role below.
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          role-to-assume: ${{ vars.AWS_TERRAFORM_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}
           role-duration-seconds: 3600
           aws-region: ${{ env.AWS_REGION }}
 

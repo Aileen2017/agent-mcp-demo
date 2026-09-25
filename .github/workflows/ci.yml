@@ -1,4 +1,4 @@
-name: CI
+name: AgentDemo
 
 on:
   pull_request:
