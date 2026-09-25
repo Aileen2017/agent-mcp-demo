@@ -1,40 +1,25 @@
-name: AgentDemo-Infra
+name: AgentDemo-Infra-Destroy
 
 on:
+  # Tags containing destroy tear down qa if the tag also contains QA, otherwise dev.
   push:
-    branches: [main, aws-infra]
-    # Tags containing QA deploy the qa environment. Path filters don't apply to tag pushes.
-    # Destroy tags are handled by infra-destroy.yml.
-    tags: ["*QA*"]
-    paths:
-      - "infra/terraform/**"
-      - ".github/workflows/infra.yml"
+    tags: ["*destroy*"]
   workflow_dispatch:
-    inputs:
-      image_tag:
-        description: "Image tag to deploy, for example dev-<commit sha>"
-        required: false
-        default: "latest"
 
 permissions:
   contents: read
 
-# Never run two applies against the same state at once, and never cancel one halfway.
+# Same groups as the Infra workflow, so a destroy never overlaps a deploy of the same environment.
 concurrency:
   group: infra-${{ github.ref_type == 'tag' && contains(github.ref_name, 'QA') && 'qa' || 'dev' }}
   cancel-in-progress: false
 
 jobs:
-  infra:
-    # Manual runs are allowed from any ref, so only deploy from these branches or a QA tag,
-    # and never from a destroy tag (a tag like v1-QA-destroy also matches *QA* above).
-    if: >-
-      !(github.ref_type == 'tag' && contains(github.ref_name, 'destroy')) && (
-      github.ref_name == 'main' || github.ref_name == 'aws-infra' ||
-      (github.ref_type == 'tag' && contains(github.ref_name, 'QA')))
+  destroy:
+    # Only runs for a tag containing destroy (pushed, or picked for a manual run).
+    if: github.ref_type == 'tag' && contains(github.ref_name, 'destroy')
     runs-on: ubuntu-latest
-    # Required reviewers on this environment (repo Settings -> Environments) pause the run
-    # until a maintainer approves it.
+    # Same required reviewers as a deploy, so a destroy also waits for approval.
     environment: infra-nonprod
     permissions:
       contents: read
@@ -45,7 +30,6 @@ jobs:
       AWS_REGION: eu-west-2
       TF_IN_AUTOMATION: "true"
       TF_INPUT: "false"
-      TF_VAR_image_tag: ${{ inputs.image_tag || 'latest' }}
     steps:
       - name: Check out repository
         uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v4.1.1
@@ -53,7 +37,6 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
-          # Keys of the mcp-demo-github-actions IAM user, which can only assume the role below.
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           role-to-assume: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}
@@ -72,7 +55,6 @@ jobs:
         run: |
           if [ "$IS_QA" = "true" ]; then
             ENVIRONMENT=qa
-            # Each environment needs its own state, or a qa apply would replace the dev resources.
             TF_STATE_KEY=mcp-demo/qa/terraform.tfstate
           else
             ENVIRONMENT=dev
@@ -81,19 +63,13 @@ jobs:
           echo "ENVIRONMENT=$ENVIRONMENT" >> "$GITHUB_ENV"
           echo "TF_VAR_environment=$ENVIRONMENT" >> "$GITHUB_ENV"
           echo "TF_STATE_KEY=$TF_STATE_KEY" >> "$GITHUB_ENV"
-          echo "Deploying environment: $ENVIRONMENT"
+          echo "Destroying environment: $ENVIRONMENT"
 
       - name: Terraform init
-        run: terraform init -backend-config="key=$TF_STATE_KEY"
+        run: terraform init
 
-      - name: Terraform format check
-        run: terraform fmt -check -recursive
+      - name: Terraform plan destroy
+        run: terraform plan -destroy -out=destroy.tfplan
 
-      - name: Terraform validate
-        run: terraform validate
-
-      - name: Terraform plan
-        run: terraform plan -out=tfplan.tfplan
-
-      - name: Terraform apply
-        run: terraform apply tfplan.tfplan
+      - name: Terraform destroy
+        run: terraform apply destroy.tfplan

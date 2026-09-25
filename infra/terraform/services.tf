@@ -1,7 +1,7 @@
 module "flights" {
   source = "./modules/ecs_service"
 
-  name               = "flights"
+  name               = "flights-mcp"
   cluster_arn        = aws_ecs_cluster.main.arn
   container_image    = local.container_image
   container_port     = 3001
@@ -25,7 +25,7 @@ module "flights" {
 module "calendar" {
   source = "./modules/ecs_service"
 
-  name               = "calendar"
+  name               = "calendar-mcp"
   cluster_arn        = aws_ecs_cluster.main.arn
   container_image    = local.container_image
   container_port     = 3002
@@ -49,7 +49,7 @@ module "calendar" {
 module "agent" {
   source = "./modules/ecs_service"
 
-  name               = "agent"
+  name               = "travel-agent"
   cluster_arn        = aws_ecs_cluster.main.arn
   container_image    = local.container_image
   container_port     = 8000
@@ -72,8 +72,8 @@ module "agent" {
     AGENT_MODEL           = var.agent_model
     BEDROCK_MODEL_ID      = var.bedrock_model_id
     AWS_REGION            = var.aws_region
-    FLIGHT_MCP_URL        = "http://flights:3001/mcp"
-    CALENDAR_MCP_URL      = "http://calendar:3002/mcp"
+    FLIGHT_MCP_URL        = "http://flights-mcp:3001/mcp"
+    CALENDAR_MCP_URL      = "http://calendar-mcp:3002/mcp"
     AGENT_ALLOWED_ORIGINS = var.allowed_origins
   }
 
