@@ -1,5 +1,5 @@
 resource "aws_ecs_task_definition" "this" {
-  family                   = var.name
+  family                   = "${var.name}-${var.environment}"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
   cpu                      = var.cpu
@@ -38,7 +38,7 @@ resource "aws_ecs_task_definition" "this" {
 }
 
 resource "aws_ecs_service" "this" {
-  name            = var.name
+  name            = "${var.name}-${var.environment}"
   cluster         = var.cluster_arn
   task_definition = aws_ecs_task_definition.this.arn
   desired_count   = var.desired_count

@@ -3,6 +3,8 @@ name: AgentDemo-Infra
 on:
   push:
     branches: [main, aws-infra]
+    # Tags containing QA deploy the qa environment. Path filters don't apply to tag pushes.
+    tags: ["*QA*"]
     paths:
       - "infra/terraform/**"
       - ".github/workflows/infra.yml"
@@ -19,13 +21,15 @@ permissions:
 
 # Never run two applies against the same state at once, and never cancel one halfway.
 concurrency:
-  group: infra-dev
+  group: infra-${{ github.ref_type == 'tag' && contains(github.ref_name, 'QA') && 'qa' || 'dev' }}
   cancel-in-progress: false
 
 jobs:
   infra:
-    # Manual runs are allowed from any branch, so only deploy from these two.
-    if: github.ref_name == 'main' || github.ref_name == 'aws-infra'
+    # Manual runs are allowed from any ref, so only deploy from these branches or a QA tag.
+    if: >-
+      github.ref_name == 'main' || github.ref_name == 'aws-infra' ||
+      (github.ref_type == 'tag' && contains(github.ref_name, 'QA'))
     runs-on: ubuntu-latest
     # Required reviewers on this environment (repo Settings -> Environments) pause the run
     # until a maintainer approves it.
@@ -60,8 +64,25 @@ jobs:
           terraform_version: 1.16.2
           terraform_wrapper: false
 
+      - name: Select environment
+        env:
+          IS_QA: ${{ github.ref_type == 'tag' && contains(github.ref_name, 'QA') }}
+        run: |
+          if [ "$IS_QA" = "true" ]; then
+            ENVIRONMENT=qa
+            # Each environment needs its own state, or a qa apply would replace the dev resources.
+            TF_STATE_KEY=mcp-demo/qa/terraform.tfstate
+          else
+            ENVIRONMENT=dev
+            TF_STATE_KEY=mcp-demo/dev/terraform.tfstate
+          fi
+          echo "ENVIRONMENT=$ENVIRONMENT" >> "$GITHUB_ENV"
+          echo "TF_VAR_environment=$ENVIRONMENT" >> "$GITHUB_ENV"
+          echo "TF_STATE_KEY=$TF_STATE_KEY" >> "$GITHUB_ENV"
+          echo "Deploying environment: $ENVIRONMENT"
+
       - name: Terraform init
-        run: terraform init
+        run: terraform init -backend-config="key=$TF_STATE_KEY"
 
       - name: Terraform format check
         run: terraform fmt -check -recursive
