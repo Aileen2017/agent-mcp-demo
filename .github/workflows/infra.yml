@@ -50,8 +50,6 @@ jobs:
       AWS_REGION: eu-west-2
       TF_IN_AUTOMATION: "true"
       TF_INPUT: "false"
-      # dev and qa both resolve to the nonprod network and ECR repository.
-      TF_VAR_environment: ${{ github.ref_type == 'tag' && contains(github.ref_name, 'QA') && 'qa' || 'dev' }}
     steps:
       - name: Check out repository
         uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v4.1.1
@@ -81,7 +79,8 @@ jobs:
         run: terraform validate
 
       - name: Terraform plan
-        run: terraform plan -out=tfplan.tfplan
+        # dev and qa share the nonprod network and ECR repository.
+        run: terraform plan -var-file=env/nonprod.tfvars -out=tfplan.tfplan
 
       - name: Terraform apply
         run: terraform apply tfplan.tfplan
@@ -141,7 +140,6 @@ jobs:
             TF_STATE_KEY=mcp-demo/dev/terraform.tfstate
           fi
           echo "ENVIRONMENT=$ENVIRONMENT" >> "$GITHUB_ENV"
-          echo "TF_VAR_environment=$ENVIRONMENT" >> "$GITHUB_ENV"
           echo "TF_STATE_KEY=$TF_STATE_KEY" >> "$GITHUB_ENV"
           echo "Deploying environment: $ENVIRONMENT"
 
@@ -155,7 +153,7 @@ jobs:
         run: terraform validate
 
       - name: Terraform plan
-        run: terraform plan -out=tfplan.tfplan
+        run: terraform plan -var-file="env/$ENVIRONMENT.tfvars" -out=tfplan.tfplan
 
       - name: Terraform apply
         run: terraform apply tfplan.tfplan
