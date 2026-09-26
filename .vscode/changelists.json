@@ -3,8 +3,7 @@
     {
       "name": "Default",
       "files": [
-        ".github/workflows/buildAndDeploy.yml",
-        ".vscode/changelists.json"
+        ".github/workflows/buildAndDeploy.yml"
       ]
     }
   ],
