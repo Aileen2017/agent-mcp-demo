@@ -20,6 +20,16 @@
         "tests"
     ],
     "python.analysis.autoImportCompletions": true,
-    "python.analysis.typeCheckingMode": "strict"
+    "python.analysis.typeCheckingMode": "strict",
+    "workbench.colorCustomizations": {
+    "titleBar.activeBackground": "#1e5f3a",
+    "titleBar.activeForeground": "#ffffff",
+    "titleBar.inactiveBackground": "#15452a",
+    "activityBar.background": "#1e5f3a",
+    "statusBar.background": "#1e5f3a",
+    "editor.background": "#10241a",
+    "sideBar.background": "#132d20"
+}
+
 
 }
