@@ -2,11 +2,11 @@ name: Build and deploy
 
 on:
   # dev: runs after the AgentDemo-Infra workflow finishes (the job's `if` keeps successes only).
-  workflow_run:
-    workflows: ["AgentDemo-Infra"] # must match `name:` in infra.yml exactly
-    types: [completed]
+  #workflow_run:
+   # workflows: ["AgentDemo-Infra"] # must match `name:` in infra.yml exactly
+   # types: [completed]
+  # Every push, any branch or any tag: branch -> dev, tag -> qa.
   push:
-    tags: ["v*"] # -> qa
   workflow_dispatch:
     inputs:
       environment:
@@ -23,15 +23,70 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  wait-for-infra:
+    # If AgentDemo-Infra (infra.yml) has runs in progress, wait for them and fail unless
+    # they all succeed. If nothing is running, finish at once so build starts directly.
+    runs-on: ubuntu-latest
+    timeout-minutes: 90 # an Infra run may sit waiting for approval; give up eventually
+    permissions:
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      INFRA_WORKFLOW: infra.yml
+      POLL_SECONDS: "30"
+    steps:
+      - name: Wait for running AgentDemo-Infra runs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # A push that changes infra/terraform starts both workflows at the same moment;
+          # give GitHub a few seconds to register the Infra run before looking for it.
+          if [ "${GITHUB_EVENT_NAME}" = "push" ]; then
+            sleep 20
+          fi
+
+          unfinished_runs() {
+            gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${INFRA_WORKFLOW}/runs?per_page=50" \
+              --jq '.workflow_runs[] | select(.status != "completed") | .id'
+          }
+
+          mapfile -t runs < <(unfinished_runs)
+          if [ "${#runs[@]}" -eq 0 ]; then
+            echo "No AgentDemo-Infra run in progress; building straight away."
+            exit 0
+          fi
+
+          echo "Waiting for AgentDemo-Infra run(s): ${runs[*]}"
+          for run_id in "${runs[@]}"; do
+            while :; do
+              read -r status conclusion url < <(
+                gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" \
+                  --jq '[.status, (.conclusion // "none"), .html_url] | @tsv'
+              )
+              if [ "${status}" = "completed" ]; then
+                break
+              fi
+              echo "  run ${run_id}: ${status} (${url})"
+              sleep "${POLL_SECONDS}"
+            done
+
+            if [ "${conclusion}" != "success" ]; then
+              echo "::error::AgentDemo-Infra run ${run_id} finished with '${conclusion}': ${url}"
+              exit 1
+            fi
+            echo "  run ${run_id}: succeeded"
+          done
+
   build:
-    # After Infra, build only if its run succeeded.
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    needs: wait-for-infra
     runs-on: ubuntu-latest
     env:
       AWS_REGION: eu-west-2
       # The commit to build: the one Infra ran on, not whatever main points to now.
       SOURCE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
-      # Manual runs use the chosen environment; tag pushes go to qa; runs after Infra to dev.
+      # Manual runs use the chosen environment; tag pushes go to qa; branch pushes and runs
+      # after Infra go to dev.
       DEPLOY_ENV: ${{ inputs.environment || (github.ref_type == 'tag' && 'qa' || 'dev') }}
       # Account tier: dev and qa share the nonprod ECR repository; prod gets its own.
       # (Job-level env can't read other env values, so the DEPLOY_ENV expression is repeated.)
