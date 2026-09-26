@@ -98,6 +98,7 @@ jobs:
       environment: ${{ env.DEPLOY_ENV }}
       environment2: ${{ env.DEPLOY_ENV2 }}
       image: ${{ steps.image.outputs.image }}
+      tag: ${{ steps.image.outputs.tag }}
     steps:
       - name: Check out repository
         uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v4.1.1
@@ -128,6 +129,7 @@ jobs:
             exit 1
           fi
           image="${ECR_REGISTRY}/mcp-demo-${DEPLOY_ENV2}:${tag}"
+          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
           echo "image=${image}" >> "${GITHUB_OUTPUT}"
           echo "Image: \`${image}\`" >> "${GITHUB_STEP_SUMMARY}"
 
@@ -156,3 +158,57 @@ jobs:
           tags: ${{ steps.image.outputs.image }}
           cache-from: type=gha,scope=${{ env.DEPLOY_ENV }}
           cache-to: type=gha,mode=max,scope=${{ env.DEPLOY_ENV }}
+
+  deploy:
+    # Point the ECS services at the image build just pushed.
+    needs: build
+    runs-on: ubuntu-latest
+    environment: infra-nonprod
+    # One apply per environment at a time; the S3 state lock also guards against infra.yml.
+    concurrency:
+      group: deploy-${{ needs.build.outputs.environment }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: infra/terraform
+    env:
+      AWS_REGION: eu-west-2
+      TF_IN_AUTOMATION: "true"
+      TF_INPUT: "false"
+      ENVIRONMENT: ${{ needs.build.outputs.environment }}
+      # The tag just built, e.g. dev-<sha> or the git tag for qa (replaces the "latest" default).
+      TF_VAR_image_tag: ${{ needs.build.outputs.tag }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v4.1.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}
+          role-duration-seconds: 3600
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: 1.16.2
+          terraform_wrapper: false
+
+      - name: Terraform init
+        # Each environment has its own state, as in infra.yml.
+        run: terraform init -backend-config="key=mcp-demo/${ENVIRONMENT}/terraform.tfstate"
+
+      - name: Terraform plan
+        run: |
+          echo "Deploying ${ENVIRONMENT} with image_tag=${TF_VAR_image_tag}"
+          terraform plan -var-file="env/${ENVIRONMENT}.tfvars" -out=tfplan.tfplan
+
+      - name: Terraform apply
+        run: terraform apply tfplan.tfplan

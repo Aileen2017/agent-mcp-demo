@@ -2,9 +2,7 @@
   "changelists": [
     {
       "name": "Default",
-      "files": [
-        ".github/workflows/buildAndDeploy.yml"
-      ]
+      "files": []
     }
   ],
   "active": "Default"
