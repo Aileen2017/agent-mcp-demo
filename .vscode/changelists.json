@@ -3,11 +3,8 @@
     {
       "name": "Default",
       "files": [
-        ".vscode/changelists.json",
-        "tests/conftest.py",
-        ".vscode/settings.json",
-        "agent/graph.py",
-        ".vscode/launch.json"
+        ".github/workflows/buildAndDeploy.yml",
+        ".vscode/changelists.json"
       ]
     }
   ],
