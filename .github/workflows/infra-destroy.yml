@@ -66,7 +66,7 @@ jobs:
           echo "Destroying environment: $ENVIRONMENT"
 
       - name: Terraform init
-        run: terraform init
+        run: terraform init -backend-config="key=$TF_STATE_KEY"
 
       - name: Terraform plan destroy
         run: terraform plan -destroy -out=destroy.tfplan

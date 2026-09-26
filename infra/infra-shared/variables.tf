@@ -11,9 +11,9 @@ variable "project" {
 }
 
 variable "environment" {
-  description = "Any environment in the tier to build (dev or qa for nonprod, prod for prod)."
+  description = "Tier to build: nonprod (shared by dev and qa) or prod."
   type        = string
-  default     = "dev"
+  default     = "nonprod"
 }
 
 variable "vpc_cidr" {
