@@ -28,6 +28,7 @@ jobs:
     # they all succeed. If nothing is running, finish at once so build starts directly.
     runs-on: ubuntu-latest
     timeout-minutes: 90 # an Infra run may sit waiting for approval; give up eventually
+    environment: infra-nonprod
     permissions:
       actions: read
     env:
@@ -81,6 +82,7 @@ jobs:
   build:
   #  needs: wait-for-infra
     runs-on: ubuntu-latest
+    environment: infra-nonprod
     env:
       AWS_REGION: eu-west-2
       # The commit to build: the one Infra ran on, not whatever main points to now.
