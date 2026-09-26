@@ -14,7 +14,7 @@ terraform {
 
   backend "s3" {
     bucket       = "mcp-demo-tfstate-730335559354"
-    key          = "mcp-demo/terraform.tfstate"
+    key          = "mcp-demo/${var.environment}/terraform.tfstate"
     region       = "eu-west-2"
     encrypt      = true
     use_lockfile = true # S3-native state locking (Terraform 1.10+, no DynamoDB needed)
