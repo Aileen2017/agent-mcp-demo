@@ -1,0 +1,214 @@
+name: Build and deploy
+
+on:
+  # dev: runs after the AgentDemo-Infra workflow finishes (the job's `if` keeps successes only).
+  #workflow_run:
+   # workflows: ["AgentDemo-Infra"] # must match `name:` in infra.yml exactly
+   # types: [completed]
+  # Every push, any branch or any tag: branch -> dev, tag -> qa.
+  push:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        type: choice
+        options: [dev, qa]
+        default: dev
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-and-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  wait-for-infra:
+    # If AgentDemo-Infra (infra.yml) has runs in progress, wait for them and fail unless
+    # they all succeed. If nothing is running, finish at once so build starts directly.
+    runs-on: ubuntu-latest
+    timeout-minutes: 90 # an Infra run may sit waiting for approval; give up eventually
+    environment: infra-nonprod
+    permissions:
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      INFRA_WORKFLOW: infra.yml
+      POLL_SECONDS: "30"
+    steps:
+      - name: Wait for running AgentDemo-Infra runs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # A push that changes infra/terraform starts both workflows at the same moment;
+          # give GitHub a few seconds to register the Infra run before looking for it.
+          if [ "${GITHUB_EVENT_NAME}" = "push" ]; then
+            sleep 20
+          fi
+
+          unfinished_runs() {
+            gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${INFRA_WORKFLOW}/runs?per_page=50" \
+              --jq '.workflow_runs[] | select(.status != "completed") | .id'
+          }
+
+          mapfile -t runs < <(unfinished_runs)
+          if [ "${#runs[@]}" -eq 0 ]; then
+            echo "No AgentDemo-Infra run in progress; building straight away."
+            exit 0
+          fi
+
+          echo "Waiting for AgentDemo-Infra run(s): ${runs[*]}"
+          for run_id in "${runs[@]}"; do
+            while :; do
+              read -r status conclusion url < <(
+                gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" \
+                  --jq '[.status, (.conclusion // "none"), .html_url] | @tsv'
+              )
+              if [ "${status}" = "completed" ]; then
+                break
+              fi
+              echo "  run ${run_id}: ${status} (${url})"
+              sleep "${POLL_SECONDS}"
+            done
+
+            if [ "${conclusion}" != "success" ]; then
+              echo "::error::AgentDemo-Infra run ${run_id} finished with '${conclusion}': ${url}"
+              exit 1
+            fi
+            echo "  run ${run_id}: succeeded"
+          done
+
+  build:
+  #  needs: wait-for-infra
+    runs-on: ubuntu-latest
+    environment: infra-nonprod
+    env:
+      AWS_REGION: eu-west-2
+      # The commit to build: the one Infra ran on, not whatever main points to now.
+      SOURCE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      # Manual runs use the chosen environment; tag pushes go to qa; branch pushes and runs
+      # after Infra go to dev.
+      DEPLOY_ENV: ${{ inputs.environment || (github.ref_type == 'tag' && 'qa' || 'dev') }}
+      # Account tier: dev and qa share the nonprod ECR repository; prod gets its own.
+      # (Job-level env can't read other env values, so the DEPLOY_ENV expression is repeated.)
+      DEPLOY_ENV2: ${{ (inputs.environment || (github.ref_type == 'tag' && 'qa' || 'dev')) == 'prod' && 'prod' || 'nonprod' }}
+      ECR_REGISTRY: 730335559354.dkr.ecr.eu-west-2.amazonaws.com
+    outputs:
+      environment: ${{ env.DEPLOY_ENV }}
+      environment2: ${{ env.DEPLOY_ENV2 }}
+      image: ${{ steps.image.outputs.image }}
+      tag: ${{ steps.image.outputs.tag }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v4.1.1
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+
+      - name: Work out image name and tag
+        id: image
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${DEPLOY_ENV}" in
+            dev)
+              tag="dev-${SOURCE_SHA}"
+              ;;
+            qa)
+              # Git tag (or branch) name, made safe for Docker: only [A-Za-z0-9_.-],
+              # must not start with '.' or '-', at most 128 characters.
+              tag="$(printf '%s' "${GITHUB_REF_NAME}" | sed -E 's/[^A-Za-z0-9_.-]+/-/g; s/^[.-]+//' | cut -c1-128)"
+              ;;
+            *)
+              echo "Unknown environment: ${DEPLOY_ENV}" >&2
+              exit 1
+              ;;
+          esac
+          if [ -z "${tag}" ]; then
+            echo "Could not derive an image tag from ref '${GITHUB_REF_NAME}'." >&2
+            exit 1
+          fi
+          image="${ECR_REGISTRY}/mcp-demo-${DEPLOY_ENV2}:${tag}"
+          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
+          echo "image=${image}" >> "${GITHUB_OUTPUT}"
+          echo "Image: \`${image}\`" >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          # Keys of the mcp-demo-github-actions IAM user, which can only assume the role below.
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ secrets.AWS_ECR_PUSH_ROLE_ARN }}
+          role-duration-seconds: 3600
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build and push image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: ${{ steps.image.outputs.image }}
+          cache-from: type=gha,scope=${{ env.DEPLOY_ENV }}
+          cache-to: type=gha,mode=max,scope=${{ env.DEPLOY_ENV }}
+
+  deploy:
+    # Point the ECS services at the image build just pushed.
+    needs: build
+    runs-on: ubuntu-latest
+    environment: infra-nonprod
+    # One apply per environment at a time; the S3 state lock also guards against infra.yml.
+    concurrency:
+      group: deploy-${{ needs.build.outputs.environment }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: infra/terraform
+    env:
+      AWS_REGION: eu-west-2
+      TF_IN_AUTOMATION: "true"
+      TF_INPUT: "false"
+      ENVIRONMENT: ${{ needs.build.outputs.environment }}
+      # The tag just built, e.g. dev-<sha> or the git tag for qa (replaces the "latest" default).
+      TF_VAR_image_tag: ${{ needs.build.outputs.tag }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v4.1.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}
+          role-duration-seconds: 3600
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: 1.16.2
+          terraform_wrapper: false
+
+      - name: Terraform init
+        # Each environment has its own state, as in infra.yml.
+        run: terraform init -backend-config="key=mcp-demo/${ENVIRONMENT}/terraform.tfstate"
+
+      - name: Terraform plan
+        run: |
+          echo "Deploying ${ENVIRONMENT} with image_tag=${TF_VAR_image_tag}"
+          terraform plan -var-file="env/${ENVIRONMENT}.tfvars" -out=tfplan.tfplan
+
+      - name: Terraform apply
+        run: terraform apply tfplan.tfplan
