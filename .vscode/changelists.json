@@ -3,25 +3,10 @@
     {
       "name": "Default",
       "files": [
-        "infra/terraform/plan1",
-        "README.md",
-        "agent/api.py",
-        "agent/context.py",
-        "agent/graph.py",
-        "agent/main.py",
-        "agent/mock_model.py",
-        "servers/calendar_server.py",
-        "tests/test_api.py",
-        "tests/test_calendar_server.py",
-        "tests/test_concurrency.py",
-        "tests/test_mock_model.py",
+        "chat.json",
         ".vscode/changelists.json",
-        "scripts/run_agent_with_interrupt.ps1",
-        "run_demo.ps1",
-        "server.py",
-        "scripts/run_demo.ps1",
-        "scripts/server.py",
-        "tests/test_server.py"
+        ".gitignore",
+        "scripts/run_agent_with_interrupt.ps1"
         "agent/mock_model.py"
       ]
     }
