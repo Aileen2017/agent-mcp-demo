@@ -3,11 +3,7 @@
     {
       "name": "Default",
       "files": [
-        "chat.json",
-        ".vscode/changelists.json",
-        ".gitignore",
         "scripts/run_agent_with_interrupt.ps1"
-        "agent/mock_model.py"
       ]
     }
   ],
