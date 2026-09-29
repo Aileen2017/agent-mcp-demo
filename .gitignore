@@ -3,3 +3,5 @@ __pycache__/
 .venv/
 /.github/skills
 /infra/github-ci
+infra/terraform/plan1
+chat.json
