@@ -172,7 +172,10 @@ class MockToolCallingModel(BaseChatModel):
                     "title": f"Holiday: {request.destination}",
                     "start_date": request.depart_date,
                     "end_date": request.return_date,
-                    "notes": f"Flight booking {booking.get('booking_reference')}",
+                    "notes": (
+                        f"Flight {cheapest['flight_id']} "
+                        f"{request.origin} -> {request.destination}"
+                    ),
                     "allow_conflict": ALLOW_CONFLICTS,
                 },
             )
