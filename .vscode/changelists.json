@@ -2,7 +2,11 @@
   "changelists": [
     {
       "name": "Default",
-      "files": []
+      "files": [
+        ".vscode/changelists.json",
+        ".vscode/settings.json",
+        "servers/flight_server.py"
+      ]
     }
   ],
   "active": "Default"

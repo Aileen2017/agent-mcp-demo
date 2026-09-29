@@ -25,6 +25,9 @@ AIRPORTS: dict[str, str] = {
     "BCN": "Barcelona El Prat, Spain",
     "DXB": "Dubai International, United Arab Emirates",
     "SIN": "Singapore Changi, Singapore",
+    "PEK": "Beijing Capital International, China",
+    "PKX": "Beijing Daxing International, China",
+    "LGW": "London Gatwick, United Kingdom"
 }
 
 CARRIERS: list[tuple[str, str]] = [
