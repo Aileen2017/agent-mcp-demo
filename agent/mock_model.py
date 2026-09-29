@@ -28,6 +28,7 @@ CITY_CODES: dict[str, str] = {
     "barcelona": "BCN",
     "dubai": "DXB",
     "singapore": "SIN",
+    "beijing": "PEK"
 }
 
 DEFAULT_ORIGIN = "LHR"

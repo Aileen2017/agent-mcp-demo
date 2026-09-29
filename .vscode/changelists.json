@@ -3,9 +3,7 @@
     {
       "name": "Default",
       "files": [
-        ".vscode/changelists.json",
-        ".vscode/settings.json",
-        "servers/flight_server.py"
+        "agent/mock_model.py"
       ]
     }
   ],
