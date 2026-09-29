@@ -1,5 +1,8 @@
 __pycache__/
 *.py[cod]
 .venv/
-/.github/skills
-/infra/github-ci
+.github/agents/
+.github/skills/
+.github/instructions/
+infra/terraform/plan1
+infra/terraform/plan2
