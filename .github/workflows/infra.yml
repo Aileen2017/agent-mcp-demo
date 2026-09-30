@@ -86,10 +86,11 @@ jobs:
         run: terraform apply tfplan.tfplan
 
   infra:
-    needs: infra-shared
+    needs: infra-shared    
     # Manual runs are allowed from any ref, so only deploy from these branches or a QA tag,
     # and never from a destroy tag (a tag like v1-QA-destroy also matches *QA* above).
     if: >-
+      !cancelled() && needs.infra-shared.result == 'success' &&
       !(github.ref_type == 'tag' && contains(github.ref_name, 'destroy')) && (
       github.ref_name == 'main' || github.ref_name == 'aws-infra' ||
       (github.ref_type == 'tag' && contains(github.ref_name, 'QA')))

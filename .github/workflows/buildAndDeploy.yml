@@ -164,7 +164,7 @@ jobs:
 
   deploy:
     # Point the ECS services at the image build just pushed.
-    needs: [wait-for-infra, build]
+    needs: build
     if: ${{ !cancelled() && needs.build.result == 'success' }}
     runs-on: ubuntu-latest
     environment: infra-nonprod
