@@ -3,7 +3,9 @@
     {
       "name": "Default",
       "files": [
-        "agent/mock_model.py"
+        "infra/terraform/modules/ecs_service/variables.tf",
+        ".vscode/changelists.json",
+        "infra/terraform/services.tf"
       ]
     }
   ],

@@ -2,6 +2,7 @@ module "flights" {
   source = "./modules/ecs_service"
 
   name               = "flights-mcp"
+  environment        = var.environment
   cluster_arn        = aws_ecs_cluster.main.arn
   container_image    = local.container_image
   container_port     = 3001
@@ -25,6 +26,7 @@ module "flights" {
 module "calendar" {
   source = "./modules/ecs_service"
 
+  environment        = var.environment
   name               = "calendar-mcp"
   cluster_arn        = aws_ecs_cluster.main.arn
   container_image    = local.container_image
@@ -50,6 +52,7 @@ module "agent" {
   source = "./modules/ecs_service"
 
   name               = "travel-agent"
+  environment        = var.environment
   cluster_arn        = aws_ecs_cluster.main.arn
   container_image    = local.container_image
   container_port     = 8000
