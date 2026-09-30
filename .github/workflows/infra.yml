@@ -3,9 +3,10 @@ name: AgentDemo-Infra
 on:
   push:
     branches: [main, aws-infra]
-    # Tags containing QA deploy the qa environment. Path filters don't apply to tag pushes.
-    # Destroy tags are handled by infra-destroy.yml.
-    tags: ["*QA*"]
+    # Tags containing QA or qa (any case) deploy the qa environment. The trigger filter is
+    # case-sensitive, unlike contains() in the job conditions, so both cases are listed.
+    # Path filters don't apply to tag pushes. Destroy tags are handled by infra-destroy.yml.
+    tags: ["*[Qq][Aa]*"]
     paths:
       - "infra/terraform/**"
       - "infra/infra-shared/**"
@@ -26,14 +27,44 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Gate for both jobs below. Manual runs are allowed from any ref, so only continue for
+  # the main or aws-infra branch, or a qa/QA tag (contains() ignores case) whose commit is
+  # on one of those branches. Never for a destroy tag (a tag like v1-QA-destroy also matches
+  # the tag filter above).
+  check-ref:
+    if: >-
+      (github.ref_type == 'branch' && (github.ref_name == 'main' || github.ref_name == 'aws-infra')) ||
+      (github.ref_type == 'tag' && contains(github.ref_name, 'qa') && !contains(github.ref_name, 'destroy'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        if: github.ref_type == 'tag'
+        uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v4.1.1
+        with:
+          fetch-depth: 0 # full history and all branches, for the ancestry check
+
+      - name: Check the tag is on main or aws-infra
+        if: github.ref_type == 'tag'
+        shell: bash
+        run: |
+          set -euo pipefail
+          commit="$(git rev-parse "${GITHUB_SHA}^{commit}")"
+          for branch in main aws-infra; do
+            if git merge-base --is-ancestor "${commit}" "origin/${branch}" 2>/dev/null; then
+              echo "Tag ${GITHUB_REF_NAME} (${commit}) is on ${branch}."
+              exit 0
+            fi
+          done
+          echo "::error::Tag ${GITHUB_REF_NAME} (${commit}) is not on main or aws-infra; not deploying."
+          exit 1
+
   # The VPC and ECR repository that dev and qa share. Applied first, because the infra job
   # looks them up by name.
   infra-shared:
-    # Same refs as the infra job below.
-    if: >-
-      !(github.ref_type == 'tag' && contains(github.ref_name, 'destroy')) && (
-      github.ref_name == 'main' || github.ref_name == 'aws-infra' ||
-      (github.ref_type == 'tag' && contains(github.ref_name, 'QA')))
+    # Skipped unless check-ref passed.
+    needs: check-ref
     runs-on: ubuntu-latest
     # dev and qa runs hold different workflow-level groups but share this state, so
     # serialise the shared apply across both.
@@ -86,14 +117,9 @@ jobs:
         run: terraform apply tfplan.tfplan
 
   infra:
-    needs: infra-shared    
-    # Manual runs are allowed from any ref, so only deploy from these branches or a QA tag,
-    # and never from a destroy tag (a tag like v1-QA-destroy also matches *QA* above).
-    if: >-
-      !cancelled() && needs.infra-shared.result == 'success' &&
-      !(github.ref_type == 'tag' && contains(github.ref_name, 'destroy')) && (
-      github.ref_name == 'main' || github.ref_name == 'aws-infra' ||
-      (github.ref_type == 'tag' && contains(github.ref_name, 'QA')))
+    # Refs are already checked by check-ref, which infra-shared needs.
+    needs: infra-shared
+    if: ${{ !cancelled() && needs.infra-shared.result == 'success' }}
     runs-on: ubuntu-latest
     # Required reviewers on this environment (repo Settings -> Environments) pause the run
     # until a maintainer approves it.
