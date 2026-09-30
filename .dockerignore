@@ -8,6 +8,6 @@ tests/
 infra/
 *.md
 run_demo.ps1
-mcp-demo2.code-workspace
+agent-mcp-demo.code-workspace
 .env
 .env.*
