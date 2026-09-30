@@ -5,8 +5,11 @@ on:
   #workflow_run:
    # workflows: ["AgentDemo-Infra"] # must match `name:` in infra.yml exactly
    # types: [completed]
-  # Every push, any branch or any tag: branch -> dev, tag -> qa.
+  # Every branch push and every tag push except destroy tags (any case; those are handled
+  # by infra-destroy.yml). The filter is case-sensitive, hence the [Xx] character sets.
   push:
+    branches: ["**"]
+    tags-ignore: ["**[Dd][Ee][Ss][Tt][Rr][Oo][Yy]**"]
   workflow_dispatch:
     inputs:
       environment:
@@ -26,6 +29,9 @@ jobs:
   wait-for-infra:
     # If AgentDemo-Infra (infra.yml) has runs in progress, wait for them and fail unless
     # they all succeed. If nothing is running, finish at once so build starts directly.
+    # Never for a destroy tag, e.g. a manual run picked on one (contains() ignores case);
+    # build and deploy need this job, so they are skipped too.
+    if: ${{ !(github.ref_type == 'tag' && contains(github.ref_name, 'destroy')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 90 # an Infra run may sit waiting for approval; give up eventually
     environment: infra-nonprod
@@ -80,19 +86,23 @@ jobs:
           done
 
   build:
-  #  needs: wait-for-infra
+    # Only build once any in-flight Infra run has succeeded; skip if wait-for-infra
+    # failed, timed out or was cancelled.
+    needs: wait-for-infra
+    if: ${{ !cancelled() && needs.wait-for-infra.result == 'success' }}
     runs-on: ubuntu-latest
     environment: infra-nonprod
     env:
       AWS_REGION: eu-west-2
       # The commit to build: the one Infra ran on, not whatever main points to now.
       SOURCE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
-      # Manual runs use the chosen environment; tag pushes go to qa; branch pushes and runs
+      # Manual runs use the chosen environment; tags containing qa/QA go to qa; other tags, branch pushes and runs
       # after Infra go to dev.
-      DEPLOY_ENV: ${{ inputs.environment || (github.ref_type == 'tag' && 'qa' || 'dev') }}
+      DEPLOY_ENV: ${{ inputs.environment || (github.ref_type == 'tag' && contains(github.ref_name, 'qa') && 'qa' || 'dev') }}
       # Account tier: dev and qa share the nonprod ECR repository; prod gets its own.
-      # (Job-level env can't read other env values, so the DEPLOY_ENV expression is repeated.)
-      DEPLOY_ENV2: ${{ (inputs.environment || (github.ref_type == 'tag' && 'qa' || 'dev')) == 'prod' && 'prod' || 'nonprod' }}
+      # Manual runs and branch pushes are nonprod; tags containing qa/QA or dev/DEV are
+      # nonprod; any other tag is prod.
+      DEPLOY_ENV2: ${{ (inputs.environment || github.ref_type != 'tag' || contains(github.ref_name, 'qa') || contains(github.ref_name, 'dev')) && 'nonprod' || 'prod' }}
       ECR_REGISTRY: 730335559354.dkr.ecr.eu-west-2.amazonaws.com
     outputs:
       environment: ${{ env.DEPLOY_ENV }}
@@ -162,6 +172,7 @@ jobs:
   deploy:
     # Point the ECS services at the image build just pushed.
     needs: build
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
     runs-on: ubuntu-latest
     environment: infra-nonprod
     # One apply per environment at a time; the S3 state lock also guards against infra.yml.

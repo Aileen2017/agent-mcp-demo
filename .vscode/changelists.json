@@ -3,7 +3,9 @@
     {
       "name": "Default",
       "files": [
-        "agent/mock_model.py"
+        ".vscode/settings.json",
+        ".vscode/changelists.json",
+        ".github/workflows/buildAndDeploy.yml"
       ]
     }
   ],
