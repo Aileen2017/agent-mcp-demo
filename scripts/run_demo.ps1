@@ -12,7 +12,8 @@ param(
 )
 $env:AGENT_MODEL = "mock"
 $ErrorActionPreference = 'Stop'
-$python = Join-Path $PSScriptRoot '.venv\Scripts\python.exe'
+$root = Split-Path $PSScriptRoot -Parent
+$python = Join-Path $root '.venv\Scripts\python.exe'
 if (-not (Test-Path $python)) {
     throw "Virtual environment not found. Create it and install requirements.txt first."
 }
@@ -29,11 +30,12 @@ foreach ($server in $servers) {
 }
 
 $processes = @()
+Push-Location $root
 try {
     foreach ($server in $servers) {
         Write-Host "Starting $($server.Name) on port $($server.Port)..."
         $processes += Start-Process -FilePath $python -ArgumentList $server.Script `
-            -WorkingDirectory $PSScriptRoot -PassThru -NoNewWindow
+            -WorkingDirectory $root -PassThru -NoNewWindow
     }
 
     foreach ($server in $servers) {
@@ -67,4 +69,5 @@ finally {
             Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
         }
     }
+    Pop-Location
 }
