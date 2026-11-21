@@ -7,6 +7,8 @@ import os
 ALLOW_CONFLICTS = os.getenv("AGENT_ALLOW_CONFLICTS", "false").strip().lower() == "true"
 FLIGHT_SERVER_URL = os.getenv("FLIGHT_MCP_URL", "http://127.0.0.1:3001/mcp")
 CALENDAR_SERVER_URL = os.getenv("CALENDAR_MCP_URL", "http://127.0.0.1:3002/mcp")
+# Set when the MCP servers are Lambda Function URLs with AWS_IAM auth: each request is SigV4-signed.
+MCP_IAM_AUTH = os.getenv("MCP_IAM_AUTH", "false").strip().lower() == "true"
 
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:8b")
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
