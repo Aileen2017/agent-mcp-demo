@@ -16,10 +16,10 @@ variable "environment" {
   default     = "dev"
 }
 
-variable "image_tag" {
-  description = "Tag of the shared Lambda image in ECR. Push it with scripts/push_lambda_image.ps1 before apply."
+variable "web_adapter_layer_version" {
+  description = "Version of AWS's public Lambda Web Adapter layer (LambdaAdapterLayerX86). Version 24 matches Lambda Web Adapter v0.9.1."
   type        = string
-  default     = "latest"
+  default     = "24"
 }
 
 variable "agent_model" {

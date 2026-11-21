@@ -1,6 +1,6 @@
-output "ecr_repository_url" {
-  description = "ECR repository for the shared Lambda image."
-  value       = aws_ecr_repository.lambda.repository_url
+output "artifacts_bucket" {
+  description = "S3 bucket that holds the Lambda zip package."
+  value       = aws_s3_bucket.artifacts.id
 }
 
 output "agent_url" {

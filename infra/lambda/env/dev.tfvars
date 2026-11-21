@@ -1,5 +1,5 @@
 # Settings for the Lambda dev environment. Committed, so never put secrets here.
-# image_tag is passed on the command line after scripts/push_lambda_image.ps1 pushes it.
+# Build the zip with scripts/build_lambda_zip.py before terraform plan/apply.
 
 environment = "dev"
 

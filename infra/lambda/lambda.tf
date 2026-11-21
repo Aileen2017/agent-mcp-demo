@@ -1,59 +1,76 @@
-# All three functions run the same image. The image command picks the ASGI app
-# (see lambda/lambda_handlers.py). Each function gets a Function URL.
+# All three functions run the same zip package (see lambda/run.sh and lambda/lambda_handlers.py).
+# ASGI_APP picks the app for each function. Each function gets a Function URL.
 #
 # Function URLs are the only network entry point. The MCP URLs are IAM-only, so just the
 # agent role can reach them. The agent URL is public, guarded by X-API-Key, as on ECS.
 
 resource "aws_lambda_function" "flights" {
-  function_name = "${local.name_prefix}-flights-mcp"
-  description   = "Mock flight search and booking MCP server."
-  role          = aws_iam_role.mcp.arn
-  package_type  = "Image"
-  image_uri     = local.image_uri
-  architectures = ["x86_64"]
-  memory_size   = var.mcp_memory_mb
-  timeout       = var.mcp_timeout_seconds
+  function_name    = "${local.name_prefix}-flights-mcp"
+  description      = "Mock flight search and booking MCP server."
+  role             = aws_iam_role.mcp.arn
+  package_type     = "Zip"
+  runtime          = "python3.13"
+  handler          = "run.sh"
+  s3_bucket        = aws_s3_bucket.artifacts.id
+  s3_key           = aws_s3_object.lambda_package.key
+  source_code_hash = filebase64sha256(local.lambda_zip_path)
+  architectures    = ["x86_64"]
+  layers           = [local.web_adapter_layer_arn]
+  memory_size      = var.mcp_memory_mb
+  timeout          = var.mcp_timeout_seconds
 
-  image_config {
-    command = ["uvicorn", "lambda_handlers:flights_app", "--host", "0.0.0.0", "--port", "8080"]
+  environment {
+    variables = merge(local.lambda_base_env, {
+      ASGI_APP = "lambda_handlers:flights_app"
+    })
   }
 
   depends_on = [aws_iam_role_policy_attachment.mcp_logs, aws_cloudwatch_log_group.flights]
 }
 
 resource "aws_lambda_function" "calendar" {
-  function_name = "${local.name_prefix}-calendar-mcp"
-  description   = "Mock personal calendar MCP server."
-  role          = aws_iam_role.mcp.arn
-  package_type  = "Image"
-  image_uri     = local.image_uri
-  architectures = ["x86_64"]
-  memory_size   = var.mcp_memory_mb
-  timeout       = var.mcp_timeout_seconds
+  function_name    = "${local.name_prefix}-calendar-mcp"
+  description      = "Mock personal calendar MCP server."
+  role             = aws_iam_role.mcp.arn
+  package_type     = "Zip"
+  runtime          = "python3.13"
+  handler          = "run.sh"
+  s3_bucket        = aws_s3_bucket.artifacts.id
+  s3_key           = aws_s3_object.lambda_package.key
+  source_code_hash = filebase64sha256(local.lambda_zip_path)
+  architectures    = ["x86_64"]
+  layers           = [local.web_adapter_layer_arn]
+  memory_size      = var.mcp_memory_mb
+  timeout          = var.mcp_timeout_seconds
 
-  image_config {
-    command = ["uvicorn", "lambda_handlers:calendar_app", "--host", "0.0.0.0", "--port", "8080"]
+  environment {
+    variables = merge(local.lambda_base_env, {
+      ASGI_APP = "lambda_handlers:calendar_app"
+    })
   }
 
   depends_on = [aws_iam_role_policy_attachment.mcp_logs, aws_cloudwatch_log_group.calendar]
 }
 
 resource "aws_lambda_function" "agent" {
-  function_name = "${local.name_prefix}-travel-agent"
-  description   = "Holiday-planning agent API (LangGraph over the flight and calendar MCP servers)."
-  role          = aws_iam_role.agent.arn
-  package_type  = "Image"
-  image_uri     = local.image_uri
-  architectures = ["x86_64"]
-  memory_size   = var.agent_memory_mb
-  timeout       = var.agent_timeout_seconds
-
-  image_config {
-    command = ["uvicorn", "lambda_handlers:agent_app", "--host", "0.0.0.0", "--port", "8080"]
-  }
+  function_name    = "${local.name_prefix}-travel-agent"
+  description      = "Holiday-planning agent API (LangGraph over the flight and calendar MCP servers)."
+  role             = aws_iam_role.agent.arn
+  package_type     = "Zip"
+  runtime          = "python3.13"
+  handler          = "run.sh"
+  s3_bucket        = aws_s3_bucket.artifacts.id
+  s3_key           = aws_s3_object.lambda_package.key
+  source_code_hash = filebase64sha256(local.lambda_zip_path)
+  architectures    = ["x86_64"]
+  layers           = [local.web_adapter_layer_arn]
+  memory_size      = var.agent_memory_mb
+  timeout          = var.agent_timeout_seconds
 
   environment {
-    variables = {
+    variables = merge(local.lambda_base_env, {
+      ASGI_APP = "lambda_handlers:agent_app"
+
       # Lambda Web Adapter streams the /chat/stream server-sent events back to the caller.
       AWS_LWA_INVOKE_MODE = "response_stream"
 
@@ -66,7 +83,7 @@ resource "aws_lambda_function" "agent" {
       MCP_IAM_AUTH     = "true"
       FLIGHT_MCP_URL   = "${trimsuffix(aws_lambda_function_url.flights.function_url, "/")}/mcp"
       CALENDAR_MCP_URL = "${trimsuffix(aws_lambda_function_url.calendar.function_url, "/")}/mcp"
-    }
+    })
   }
 
   depends_on = [
