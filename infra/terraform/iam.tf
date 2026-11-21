@@ -48,8 +48,9 @@ resource "aws_iam_role" "agent_task" {
   })
 }
 
-# Cross-region inference profiles fan out to the model in several EU regions,
+# Cross-region inference profiles fan out to the model in several regions,
 # so the policy covers both the profile and the underlying foundation models.
+# Covers the Claude Sonnet 4.5 (eu.) profiles and the Nova 2 Lite global profile.
 resource "aws_iam_role_policy" "agent_bedrock" {
   count = var.agent_model == "bedrock" ? 1 : 0
 
@@ -66,7 +67,9 @@ resource "aws_iam_role_policy" "agent_bedrock" {
       ]
       Resource = [
         "arn:aws:bedrock:*::foundation-model/anthropic.claude-sonnet-4-5-*",
-        "arn:aws:bedrock:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:inference-profile/eu.anthropic.claude-sonnet-4-5-*"
+        "arn:aws:bedrock:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:inference-profile/eu.anthropic.claude-sonnet-4-5-*",
+        "arn:aws:bedrock:*::foundation-model/amazon.nova-2-lite-v1:0",
+        "arn:aws:bedrock:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:inference-profile/global.amazon.nova-2-lite-v1:0"
       ]
     }]
   })
