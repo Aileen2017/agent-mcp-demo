@@ -111,6 +111,42 @@ jobs:
       - name: Run tests
         run: python -m pytest -v
 
+  build-lambda:
+    # Build the Lambda zip with scripts/build_lambda_zip.py (dependencies resolved for Lambda's
+    # Linux x86_64 runtime). Runs alongside the Docker build once the tests have passed.
+    needs: test
+    if: ${{ !cancelled() && needs.test.result == 'success' && !(github.ref_type == 'tag' && contains(github.ref_name, 'destroy')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # The commit to build: the one Infra ran on, not whatever main points to now.
+      SOURCE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v4.1.1
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Install uv
+        # The build script calls uv on PATH; installing it into the setup-python environment puts it there.
+        run: python -m pip install uv
+
+      - name: Build Lambda zip
+        run: python scripts/build_lambda_zip.py
+
+      - name: Upload Lambda zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcp-demo-lambda
+          path: build/lambda/mcp-demo-lambda.zip
+          if-no-files-found: error
+          retention-days: 14
+
   build:
     # Only build once the tests have passed and any in-flight Infra run has succeeded;
     # skip if either job failed, timed out or was cancelled.
