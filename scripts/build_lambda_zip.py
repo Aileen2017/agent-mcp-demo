@@ -1,6 +1,6 @@
 """Build the zip package that runs the flight MCP, calendar MCP and agent API on AWS Lambda.
 
-Output: build/lambda/mcp-demo-lambda.zip (read by infra/lambda, which uploads it to S3).
+Output: build/lambda/mcp-demo-lambda.zip (read by infra/terraform/lambda, which uploads it to S3).
 
 Dependencies are resolved for Lambda's Linux x86_64 platform with uv, so this works from
 Windows or macOS without Docker. uv must be on PATH: https://docs.astral.sh/uv/
@@ -21,7 +21,7 @@ BUILD_DIR = REPO_ROOT / "build" / "lambda"
 PACKAGE_DIR = BUILD_DIR / "package"
 ZIP_PATH = BUILD_DIR / "mcp-demo-lambda.zip"
 
-# Lambda's Python runtime version and platform (must match the runtime in infra/lambda).
+# Lambda's Python runtime version and platform (must match the runtime in infra/terraform/lambda).
 PYTHON_VERSION = "3.13"
 PYTHON_PLATFORM = "x86_64-manylinux_2_28"
 
