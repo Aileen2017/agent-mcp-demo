@@ -147,6 +147,83 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  deploy-lambda:
+    # Copy the Lambda zip from build-lambda into the artifacts bucket that infra/lambda creates.
+    # Needs build too, only to reuse its environment output (the same dev/qa choice as the ECS deploy).
+    needs: [build-lambda, build]
+    if: ${{ !cancelled() && needs['build-lambda'].result == 'success' && needs.build.result == 'success' }}
+    runs-on: ubuntu-latest
+    environment: infra-nonprod
+    concurrency:
+      group: deploy-lambda-${{ needs.build.outputs.environment }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+    env:
+      AWS_REGION: eu-west-2
+      TF_IN_AUTOMATION: "true"
+      TF_INPUT: "false"
+      ENVIRONMENT: ${{ needs.build.outputs.environment }}
+      # Same key as the lambda stack's own runs, so the bucket name comes from the real state.
+      LAMBDA_STATE_KEY: mcp-demo-lambda/${{ needs.build.outputs.environment }}/terraform.tfstate
+      # Object key the lambda stack reads (aws_s3_object.lambda_package in infra/lambda/artifacts.tf).
+      LAMBDA_OBJECT_KEY: lambda/mcp-demo-lambda.zip
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v4.1.1
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Download Lambda zip
+        uses: actions/download-artifact@v4
+        with:
+          name: mcp-demo-lambda
+          path: build/lambda
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}
+          role-duration-seconds: 3600
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: 1.16.2
+          terraform_wrapper: false
+
+      - name: Terraform init
+        working-directory: infra/lambda
+        run: terraform init -backend-config="key=${LAMBDA_STATE_KEY}"
+
+      - name: Find artifacts bucket
+        id: bucket
+        working-directory: infra/lambda
+        shell: bash
+        run: |
+          set -euo pipefail
+          bucket="$(terraform output -raw artifacts_bucket)"
+          if [ -z "${bucket}" ]; then
+            echo "::error::artifacts_bucket output is empty; has the infra/lambda stack been applied for ${ENVIRONMENT}?"
+            exit 1
+          fi
+          echo "bucket=${bucket}" >> "${GITHUB_OUTPUT}"
+          echo "Artifacts bucket: \`${bucket}\`" >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload Lambda zip to S3
+        shell: bash
+        env:
+          BUCKET: ${{ steps.bucket.outputs.bucket }}
+        run: |
+          set -euo pipefail
+          zip_path="build/lambda/mcp-demo-lambda.zip"
+          test -f "${zip_path}"
+          aws s3 cp "${zip_path}" "s3://${BUCKET}/${LAMBDA_OBJECT_KEY}"
+          echo "Uploaded to s3://${BUCKET}/${LAMBDA_OBJECT_KEY}" >> "${GITHUB_STEP_SUMMARY}"
+
   build:
     # Only build once the tests have passed and any in-flight Infra run has succeeded;
     # skip if either job failed, timed out or was cancelled.
