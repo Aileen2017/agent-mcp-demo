@@ -63,6 +63,8 @@ jobs:
   # The VPC and ECR repository that dev and qa share. Applied first, because the infra job
   # looks them up by name.
   infra-shared:
+    # TEMPORARY: skipped until re-enabled. Remove this line to restore the job.
+    if: false
     # Skipped unless check-ref passed.
     needs: check-ref
     runs-on: ubuntu-latest
@@ -133,9 +135,10 @@ jobs:
         run: terraform apply tfplan.tfplan
 
   infra:
-    # Refs are already checked by check-ref, which infra-shared needs.
-    needs: infra-shared
-    if: ${{ !cancelled() && needs.infra-shared.result == 'success' }}
+    # Refs are already checked by check-ref. infra-shared may be skipped (temporarily disabled),
+    # so only a failed infra-shared stops this job.
+    needs: [check-ref, infra-shared]
+    if: ${{ !cancelled() && needs.check-ref.result == 'success' && needs.infra-shared.result != 'failure' }}
     runs-on: ubuntu-latest
     # Required reviewers on this environment (repo Settings -> Environments) pause the run
     # until a maintainer approves it.
