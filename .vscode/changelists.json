@@ -3,11 +3,8 @@
     {
       "name": "Default",
       "files": [
-        ".github/workflows/infra-destroy.yml",
-        ".gitignore",
+        "infra/terraform/lambda/artifacts.tf",
         ".vscode/changelists.json"
-        ".vscode/changelists.json",
-        ".github/workflows/infra.yml"
       ]
     }
   ],

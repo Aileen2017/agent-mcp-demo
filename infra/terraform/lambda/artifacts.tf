@@ -13,10 +13,3 @@ resource "aws_s3_bucket_public_access_block" "artifacts" {
   ignore_public_acls      = true
   restrict_public_buckets = true
 }
-
-resource "aws_s3_object" "lambda_package" {
-  bucket = aws_s3_bucket.artifacts.id
-  key    = "lambda/mcp-demo-lambda.zip"
-  source = local.lambda_zip_path
-  etag   = filemd5(local.lambda_zip_path)
-}
