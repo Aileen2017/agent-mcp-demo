@@ -100,10 +100,26 @@ jobs:
           terraform_version: 1.16.2
           terraform_wrapper: false
 
+      - name: Select environment
+        env:
+          IS_QA: ${{ github.ref_type == 'tag' && contains(github.ref_name, 'QA') }}
+        run: |
+          if [ "$IS_QA" = "true" ]; then
+            ENVIRONMENT=qa
+            # Each environment needs its own state, or a qa apply would replace the dev resources.
+            TF_STATE_KEY=mcp-demo/qa/terraform.tfstate
+          else
+            ENVIRONMENT=dev
+            TF_STATE_KEY=mcp-demo/dev/terraform.tfstate
+          fi
+          echo "ENVIRONMENT=$ENVIRONMENT" >> "$GITHUB_ENV"
+          echo "TF_STATE_KEY=$TF_STATE_KEY" >> "$GITHUB_ENV"
+          echo "Deploying environment: $ENVIRONMENT"
+
       - name: Terraform init
         run: terraform init
 
-      - name: Terraform format check
+      - name: Terraform format check  
         run: terraform fmt -check -recursive
 
       - name: Terraform validate
