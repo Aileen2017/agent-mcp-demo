@@ -107,10 +107,10 @@ jobs:
           if [ "$IS_QA" = "true" ]; then
             ENVIRONMENT=qa
             # Each environment needs its own state, or a qa apply would replace the dev resources.
-            TF_STATE_KEY=mcp-demo/qa/terraform.tfstate
+            TF_STATE_KEY=mcp-demo/infra-shared.tfstate
           else
             ENVIRONMENT=dev
-            TF_STATE_KEY=mcp-demo/dev/terraform.tfstate
+            TF_STATE_KEY=mcp-demo/infra-shared.tfstate
           fi
           echo "ENVIRONMENT=$ENVIRONMENT" >> "$GITHUB_ENV"
           echo "TF_STATE_KEY=$TF_STATE_KEY" >> "$GITHUB_ENV"

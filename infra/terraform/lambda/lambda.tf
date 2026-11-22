@@ -11,8 +11,8 @@ resource "aws_lambda_function" "flights" {
   package_type     = "Zip"
   runtime          = "python3.13"
   handler          = "run.sh"
-  s3_bucket        = aws_s3_bucket.artifacts.id
-  s3_key           = aws_s3_object.lambda_package.key
+  s3_bucket        = data.aws_s3_bucket.artifacts.id
+  s3_key           = "mcp-demo-lambda.zip"
   source_code_hash = filebase64sha256(local.lambda_zip_path)
   architectures    = ["x86_64"]
   layers           = [local.web_adapter_layer_arn]
@@ -35,8 +35,8 @@ resource "aws_lambda_function" "calendar" {
   package_type     = "Zip"
   runtime          = "python3.13"
   handler          = "run.sh"
-  s3_bucket        = aws_s3_bucket.artifacts.id
-  s3_key           = aws_s3_object.lambda_package.key
+  s3_bucket        = data.aws_s3_bucket.artifacts.id
+  s3_key           = "mcp-demo-lambda.zip"
   source_code_hash = filebase64sha256(local.lambda_zip_path)
   architectures    = ["x86_64"]
   layers           = [local.web_adapter_layer_arn]
@@ -59,8 +59,8 @@ resource "aws_lambda_function" "agent" {
   package_type     = "Zip"
   runtime          = "python3.13"
   handler          = "run.sh"
-  s3_bucket        = aws_s3_bucket.artifacts.id
-  s3_key           = aws_s3_object.lambda_package.key
+  s3_bucket        = data.aws_s3_bucket.artifacts.id
+  s3_key           = "mcp-demo-lambda.zip"
   source_code_hash = filebase64sha256(local.lambda_zip_path)
   architectures    = ["x86_64"]
   layers           = [local.web_adapter_layer_arn]

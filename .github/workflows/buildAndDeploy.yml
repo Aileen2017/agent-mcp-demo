@@ -166,8 +166,8 @@ jobs:
       ENVIRONMENT: ${{ needs.build.outputs.environment }}
       # Same key as the lambda stack's own runs, so the bucket name comes from the real state.
       LAMBDA_STATE_KEY: mcp-demo-lambda/${{ needs.build.outputs.environment }}/terraform.tfstate
-      # Object key the lambda stack reads (aws_s3_object.lambda_package in infra/terraform/lambda/artifacts.tf).
-      LAMBDA_OBJECT_KEY: lambda/mcp-demo-lambda.zip
+      # Object key the lambda stack reads (local.lambda_object_key in infra/terraform/lambda/locals.tf).
+      LAMBDA_OBJECT_KEY: lambda/${{ needs.build.outputs.environment }}/mcp-demo-lambda.zip
     steps:
       - name: Check out repository
         uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v4.1.1

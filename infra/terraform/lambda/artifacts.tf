@@ -1,15 +1,15 @@
-# S3 bucket for the Lambda zip package. The zip is about 58 MB, over the 50 MB limit for a
-# direct upload, so Lambda reads it from S3. Build it first with scripts/build_lambda_zip.py.
+# The Lambda zip is uploaded to the artifacts bucket that infra/infra-shared creates. The bucket
+# is looked up by name here, so this stack needs no access to infra-shared's state.
+# The zip is built by scripts/build_lambda_zip.py before this stack is planned.
 
-resource "aws_s3_bucket" "artifacts" {
-  bucket        = "${local.name_prefix}-lambda-artifacts-${local.account_id}"
-  force_destroy = var.environment != "prod"
+data "aws_s3_bucket" "artifacts" {
+  bucket = local.artifacts_bucket_name
 }
 
-resource "aws_s3_bucket_public_access_block" "artifacts" {
-  bucket                  = aws_s3_bucket.artifacts.id
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
-}
+# The Lambda zip, uploaded under this environment's key (see locals.tf).
+# resource "aws_s3_object" "lambda_package" {
+#  bucket = data.aws_s3_bucket.artifacts.id
+#  key    = local.lambda_object_key
+#  source = local.lambda_zip_path
+#  etag   = filemd5(local.lambda_zip_path)
+# }

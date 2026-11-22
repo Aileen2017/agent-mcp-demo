@@ -4,7 +4,13 @@
       "name": "Default",
       "files": [
         "infra/terraform/lambda/artifacts.tf",
-        ".vscode/changelists.json"
+        ".github/workflows/buildAndDeploy.yml",
+        ".github/workflows/infra.yml",
+        "infra/terraform/lambda/lambda.tf",
+        "infra/terraform/lambda/locals.tf",
+        "infra/terraform/lambda/outputs.tf",
+        ".vscode/changelists.json",
+        "infra/infra-shared/env/nonprod.tfvars"
       ]
     }
   ],

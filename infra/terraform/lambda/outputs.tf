@@ -1,6 +1,6 @@
 output "artifacts_bucket" {
   description = "S3 bucket that holds the Lambda zip package."
-  value       = aws_s3_bucket.artifacts.id
+  value       = data.aws_s3_bucket.artifacts.id
 }
 
 output "agent_url" {
