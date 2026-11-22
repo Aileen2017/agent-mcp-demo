@@ -3,6 +3,9 @@
     {
       "name": "Default",
       "files": [
+        ".github/workflows/infra-destroy.yml",
+        ".gitignore",
+        ".vscode/changelists.json"
         ".vscode/changelists.json",
         ".github/workflows/infra.yml"
       ]

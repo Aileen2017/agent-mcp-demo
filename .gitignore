@@ -11,3 +11,5 @@ chat.json
 
 # Lambda zip and dependency build output (scripts/build_lambda_zip.py)
 build/
+build/lambda/
+infra/lambda/.terraform/
