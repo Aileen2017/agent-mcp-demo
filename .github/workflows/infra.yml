@@ -64,7 +64,7 @@ jobs:
   # looks them up by name.
   infra-shared:
     # TEMPORARY: skipped until re-enabled. Remove this line to restore the job.
-    if: false
+    # if: false
     # Skipped unless check-ref passed.
     needs: check-ref
     runs-on: ubuntu-latest
@@ -109,7 +109,7 @@ jobs:
           if [ "$IS_QA" = "true" ]; then
             ENVIRONMENT=qa
             # Each environment needs its own state, or a qa apply would replace the dev resources.
-            TF_STATE_KEY=mcp-demo/infra-shared.tfstate
+            TF_STATE_KEY=mcp-demo/nonprod/infra-shared.tfstate
           else
             ENVIRONMENT=dev
             TF_STATE_KEY=mcp-demo/infra-shared.tfstate
@@ -129,7 +129,7 @@ jobs:
 
       - name: Terraform plan
         # dev and qa share the nonprod network and ECR repository.
-        run: terraform plan -var-file=env/nonprod.tfvars -out=tfplan.tfplan
+        run: terraform plan -var-file="env/$ENVIRONMENT.tfvars" -out=tfplan.tfplan
 
       - name: Terraform apply
         run: terraform apply tfplan.tfplan
@@ -138,7 +138,8 @@ jobs:
     # Refs are already checked by check-ref. infra-shared may be skipped (temporarily disabled),
     # so only a failed infra-shared stops this job.
     needs: [check-ref, infra-shared]
-    if: ${{ !cancelled() && needs.check-ref.result == 'success' && needs.infra-shared.result != 'failure' }}
+    # if: ${{ !cancelled() && needs.check-ref.result == 'success' && needs.infra-shared.result != 'failure' }}
+    if: ${{ !cancelled() && needs.infra-shared.result == 'success' }}
     runs-on: ubuntu-latest
     # Required reviewers on this environment (repo Settings -> Environments) pause the run
     # until a maintainer approves it.

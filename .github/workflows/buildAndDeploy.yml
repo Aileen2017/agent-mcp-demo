@@ -150,7 +150,7 @@ jobs:
   deploy-lambda:
     # Copy the Lambda zip from build-lambda into the artifacts bucket that infra/terraform/lambda creates.
     # Needs build too, only to reuse its environment output (the same dev/qa choice as the ECS deploy).
-    needs: [build-lambda, build]
+    needs: [build-lambda]
     if: ${{ !cancelled() && needs['build-lambda'].result == 'success' && needs.build.result == 'success' }}
     runs-on: ubuntu-latest
     environment: infra-nonprod

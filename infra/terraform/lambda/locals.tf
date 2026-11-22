@@ -3,7 +3,9 @@ data "aws_caller_identity" "current" {}
 locals {
   account_id = data.aws_caller_identity.current.account_id
 
-
+  # Zip built by scripts/build_lambda_zip.py at the repo root. This module is infra/terraform/lambda,
+  # so the repo root is three levels up.
+  lambda_zip_path = "${path.module}/../../../build/lambda/mcp-demo-lambda.zip"
 
   # Lambda Web Adapter from AWS's public layer (account 753240598075). The layer runs the
   # app behind the handler and proxies Function URL requests to it. Layer version 24 is the
@@ -23,8 +25,9 @@ locals {
 
   # Bucket created by infra/infra-shared: one per tier (dev and qa share nonprod).
   artifacts_environment = var.environment == "prod" ? "prod" : "nonprod"
-  artifacts_bucket_name = "${var.project}-${local.artifacts_environment}-lambda-artifacts-${local.account_id}"
+  artifacts_bucket_name = "${var.project}-${local.artifacts_environment}-lambda-artifacts"
 
   # Per-environment key, so dev and qa zips in the shared bucket don't overwrite each other.
-  lambda_object_key = "lambda/${var.environment}/mcp-demo-lambda.zip"
+  # lambda_object_key = "lambda/${var.environment}/mcp-demo-lambda.zip"
+  lambda_object_key = "mcp-demo-lambda.zip"
 }

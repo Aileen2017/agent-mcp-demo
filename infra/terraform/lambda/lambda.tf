@@ -5,19 +5,19 @@
 # agent role can reach them. The agent URL is public, guarded by X-API-Key, as on ECS.
 
 resource "aws_lambda_function" "flights" {
-  function_name    = "${local.name_prefix}-flights-mcp"
-  description      = "Mock flight search and booking MCP server."
-  role             = aws_iam_role.mcp.arn
-  package_type     = "Zip"
-  runtime          = "python3.13"
-  handler          = "run.sh"
-  s3_bucket        = data.aws_s3_bucket.artifacts.id
-  s3_key           = "mcp-demo-lambda.zip"
-  source_code_hash = filebase64sha256(local.lambda_zip_path)
-  architectures    = ["x86_64"]
-  layers           = [local.web_adapter_layer_arn]
-  memory_size      = var.mcp_memory_mb
-  timeout          = var.mcp_timeout_seconds
+  function_name = "${local.name_prefix}-flights-mcp"
+  description   = "Mock flight search and booking MCP server."
+  role          = aws_iam_role.mcp.arn
+  package_type  = "Zip"
+  runtime       = "python3.13"
+  handler       = "run.sh"
+  s3_bucket     = data.aws_s3_bucket.artifacts.id
+  s3_key        = "mcp-demo-lambda.zip"
+
+  architectures = ["x86_64"]
+  layers        = [local.web_adapter_layer_arn]
+  memory_size   = var.mcp_memory_mb
+  timeout       = var.mcp_timeout_seconds
 
   environment {
     variables = merge(local.lambda_base_env, {
@@ -29,19 +29,19 @@ resource "aws_lambda_function" "flights" {
 }
 
 resource "aws_lambda_function" "calendar" {
-  function_name    = "${local.name_prefix}-calendar-mcp"
-  description      = "Mock personal calendar MCP server."
-  role             = aws_iam_role.mcp.arn
-  package_type     = "Zip"
-  runtime          = "python3.13"
-  handler          = "run.sh"
-  s3_bucket        = data.aws_s3_bucket.artifacts.id
-  s3_key           = "mcp-demo-lambda.zip"
-  source_code_hash = filebase64sha256(local.lambda_zip_path)
-  architectures    = ["x86_64"]
-  layers           = [local.web_adapter_layer_arn]
-  memory_size      = var.mcp_memory_mb
-  timeout          = var.mcp_timeout_seconds
+  function_name = "${local.name_prefix}-calendar-mcp"
+  description   = "Mock personal calendar MCP server."
+  role          = aws_iam_role.mcp.arn
+  package_type  = "Zip"
+  runtime       = "python3.13"
+  handler       = "run.sh"
+  s3_bucket     = data.aws_s3_bucket.artifacts.id
+  s3_key        = "mcp-demo-lambda.zip"
+
+  architectures = ["x86_64"]
+  layers        = [local.web_adapter_layer_arn]
+  memory_size   = var.mcp_memory_mb
+  timeout       = var.mcp_timeout_seconds
 
   environment {
     variables = merge(local.lambda_base_env, {
@@ -53,19 +53,18 @@ resource "aws_lambda_function" "calendar" {
 }
 
 resource "aws_lambda_function" "agent" {
-  function_name    = "${local.name_prefix}-travel-agent"
-  description      = "Holiday-planning agent API (LangGraph over the flight and calendar MCP servers)."
-  role             = aws_iam_role.agent.arn
-  package_type     = "Zip"
-  runtime          = "python3.13"
-  handler          = "run.sh"
-  s3_bucket        = data.aws_s3_bucket.artifacts.id
-  s3_key           = "mcp-demo-lambda.zip"
-  source_code_hash = filebase64sha256(local.lambda_zip_path)
-  architectures    = ["x86_64"]
-  layers           = [local.web_adapter_layer_arn]
-  memory_size      = var.agent_memory_mb
-  timeout          = var.agent_timeout_seconds
+  function_name = "${local.name_prefix}-travel-agent"
+  description   = "Holiday-planning agent API (LangGraph over the flight and calendar MCP servers)."
+  role          = aws_iam_role.agent.arn
+  package_type  = "Zip"
+  runtime       = "python3.13"
+  handler       = "run.sh"
+  s3_bucket     = data.aws_s3_bucket.artifacts.id
+  s3_key        = "mcp-demo-lambda.zip"
+  architectures = ["x86_64"]
+  layers        = [local.web_adapter_layer_arn]
+  memory_size   = var.agent_memory_mb
+  timeout       = var.agent_timeout_seconds
 
   environment {
     variables = merge(local.lambda_base_env, {

@@ -3,14 +3,9 @@
     {
       "name": "Default",
       "files": [
-        "infra/terraform/lambda/artifacts.tf",
-        ".github/workflows/buildAndDeploy.yml",
-        ".github/workflows/infra.yml",
-        "infra/terraform/lambda/lambda.tf",
-        "infra/terraform/lambda/locals.tf",
-        "infra/terraform/lambda/outputs.tf",
+        "infra/infra-shared/env/qa.tfvars",
         ".vscode/changelists.json",
-        "infra/infra-shared/env/nonprod.tfvars"
+        "infra/infra-shared/env/dev.tfvars"
       ]
     }
   ],

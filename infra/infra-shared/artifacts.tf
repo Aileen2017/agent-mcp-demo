@@ -5,7 +5,7 @@
 data "aws_caller_identity" "current" {}
 
 resource "aws_s3_bucket" "artifacts" {
-  bucket        = "${var.project}-${var.environment}-lambda-artifacts-${data.aws_caller_identity.current.account_id}"
+  bucket        = "${var.project}-${local.environment2}-lambda-artifacts"
   force_destroy = var.environment != "prod"
 }
 
