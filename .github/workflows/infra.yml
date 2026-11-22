@@ -185,6 +185,8 @@ jobs:
       - name: Terraform apply
         run: terraform apply tfplan.tfplan
 
+
+        
       - name: Terraform init (lambda)
         working-directory: infra/terraform/lambda
         run: terraform init -backend-config="key=mcp-demo-lambda/$ENVIRONMENT/terraform.tfstate"

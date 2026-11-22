@@ -3,8 +3,8 @@
     {
       "name": "Default",
       "files": [
-        "infra/terraform/env/dev.tfvars",
-        ".vscode/changelists.json"
+        ".vscode/changelists.json",
+        ".github/workflows/infra.yml"
       ]
     }
   ],
