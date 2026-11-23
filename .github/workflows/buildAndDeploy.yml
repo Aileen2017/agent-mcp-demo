@@ -117,10 +117,17 @@ jobs:
     needs: test
     if: ${{ !cancelled() && needs.test.result == 'success' && !(github.ref_type == 'tag' && contains(github.ref_name, 'destroy')) }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    environment: infra-nonprod
     env:
+      AWS_REGION: eu-west-2
       # The commit to build: the one Infra ran on, not whatever main points to now.
       SOURCE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      # Manual runs use the chosen environment; tags containing qa/QA go to qa; other tags, branch pushes and runs
+      # after Infra go to dev.
+      DEPLOY_ENV: ${{ inputs.environment || (github.ref_type == 'tag' && contains(github.ref_name, 'qa') && 'qa' || 'dev') }}
+    outputs:
+      environment: ${{ env.DEPLOY_ENV }}
+    timeout-minutes: 20
     steps:
       - name: Check out repository
         uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v4.1.1
@@ -149,13 +156,13 @@ jobs:
 
   deploy-lambda:
     # Copy the Lambda zip from build-lambda into the artifacts bucket that infra/terraform/lambda creates.
-    # Needs build too, only to reuse its environment output (the same dev/qa choice as the ECS deploy).
+    # build-lambda carries the dev/qa environment output, so the Lambda pipeline is independent of the build job.
     needs: [build-lambda]
-    if: ${{ !cancelled() && needs['build-lambda'].result == 'success' && needs.build.result == 'success' }}
+    if: ${{ !cancelled() && needs['build-lambda'].result == 'success' }}
     runs-on: ubuntu-latest
     environment: infra-nonprod
     concurrency:
-      group: deploy-lambda-${{ needs.build.outputs.environment }}
+      group: deploy-lambda-${{ needs['build-lambda'].outputs.environment }}
       cancel-in-progress: false
     permissions:
       contents: read
@@ -163,11 +170,11 @@ jobs:
       AWS_REGION: eu-west-2
       TF_IN_AUTOMATION: "true"
       TF_INPUT: "false"
-      ENVIRONMENT: ${{ needs.build.outputs.environment }}
+      ENVIRONMENT: ${{ needs['build-lambda'].outputs.environment }}
       # Same key as the lambda stack's own runs, so the bucket name comes from the real state.
-      LAMBDA_STATE_KEY: mcp-demo-lambda/${{ needs.build.outputs.environment }}/terraform.tfstate
+      LAMBDA_STATE_KEY: mcp-demo-lambda/${{ needs['build-lambda'].outputs.environment }}/terraform.tfstate
       # Object key the lambda stack reads (local.lambda_object_key in infra/terraform/lambda/locals.tf).
-      LAMBDA_OBJECT_KEY: lambda/${{ needs.build.outputs.environment }}/mcp-demo-lambda.zip
+      LAMBDA_OBJECT_KEY: lambda/mcp-demo-lambda.zip
     steps:
       - name: Check out repository
         uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a # v4.1.1
@@ -217,6 +224,7 @@ jobs:
         shell: bash
         env:
           BUCKET: ${{ steps.bucket.outputs.bucket }}
+          ENVIRONMENT: ${{ needs['build-lambda'].outputs.environment }}
         run: |
           set -euo pipefail
           zip_path="build/lambda/mcp-demo-lambda.zip"
@@ -246,7 +254,6 @@ jobs:
       ECR_REGISTRY: 730335559354.dkr.ecr.eu-west-2.amazonaws.com
     outputs:
       environment: ${{ env.DEPLOY_ENV }}
-      environment2: ${{ env.DEPLOY_ENV2 }}
       image: ${{ steps.image.outputs.image }}
       tag: ${{ steps.image.outputs.tag }}
     steps:

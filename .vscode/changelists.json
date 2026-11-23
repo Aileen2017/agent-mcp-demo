@@ -3,9 +3,10 @@
     {
       "name": "Default",
       "files": [
-        "infra/terraform/env/dev.tfvars",
+        ".mcp.json",
         ".vscode/changelists.json",
-        "agent/config.py"
+        ".github/workflows/buildAndDeploy.yml",
+        "README.md"
       ]
     }
   ],

@@ -159,8 +159,54 @@ network access, and they never call a real model.
 
 ## Deployment
 
+The same code ships two ways: as containers on ECS, and as serverless functions on Lambda.
+
+### Containers (ECS)
+
 The [Dockerfile](Dockerfile) builds a single image for all three services; the start
 command is set for each service at deploy time. Terraform for AWS (ECR, networking, ECS
 behind an ALB) is in [infra/](infra/), and the GitHub Actions workflows in
 [.github/workflows/](.github/workflows/) provision the infrastructure and build and deploy
 the image.
+
+### Serverless (Lambda)
+
+The same three apps also run as three AWS Lambda functions — `flights`, `calendar`, and
+`agent` — all from one zip package on the `python3.13` x86_64 runtime. The
+[Lambda Web Adapter](https://github.com/awslabs/aws-lambda-web-adapter) layer runs
+[lambda/run.sh](lambda/run.sh), which starts uvicorn on the ASGI app named by the
+`ASGI_APP` environment variable ([lambda/lambda_handlers.py](lambda/lambda_handlers.py)):
+
+| Function | `ASGI_APP` | Function URL auth |
+| --- | --- | --- |
+| `flights` | `lambda_handlers:flights_app` | `AWS_IAM` (agent only) |
+| `calendar` | `lambda_handlers:calendar_app` | `AWS_IAM` (agent only) |
+| `agent` | `lambda_handlers:agent_app` | `NONE` (public entry point) |
+
+So the same FastMCP/Starlette apps run unchanged — no Lambda-specific handler. The two MCP
+functions run **stateless** (`stateless_http=True, json_response=True`): a request can land
+on any warm container, so no session is held in memory. Each function gets a Function URL.
+The agent's URL is the public entry point; the flight and calendar URLs require `AWS_IAM`,
+and the agent reaches them through `FLIGHT_MCP_URL` / `CALENDAR_MCP_URL` (set by Terraform
+to those URLs), signing its requests with its IAM role.
+
+Build the zip locally (needs [uv](https://docs.astral.sh/uv/) on PATH; dependencies are
+resolved for Lambda's Linux x86_64 platform, so no Docker is needed):
+
+```powershell
+python scripts\build_lambda_zip.py   # -> build/lambda/mcp-demo-lambda.zip
+```
+
+Terraform for the functions, Function URLs, IAM roles, log groups, and the S3 artifacts
+bucket is in [infra/terraform/lambda/](infra/terraform/lambda/) (a separate state from the
+ECS stack). In CI, the `build-lambda` job builds the zip and `deploy-lambda` uploads it to
+that bucket; the functions load their code from S3.
+
+Once deployed, call the agent's public Function URL exactly like the local API — the
+`X-API-Key` header still applies:
+
+```powershell
+$body = '{"request":"Book me 5 nights in Barcelona in three weeks and add it to my calendar"}'
+curl -H "X-API-Key: $env:AGENT_API_KEY" -H "Content-Type: application/json" -d $body `
+  https://lg4p2dyvwlvhvizphkkphxbyqm0qxdll.lambda-url.eu-west-2.on.aws/chat
+```
