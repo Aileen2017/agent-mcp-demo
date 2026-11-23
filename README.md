@@ -132,7 +132,7 @@ The API has basic protections built in:
 | --- | --- | --- |
 | `AGENT_API_KEY` | _(empty)_ | Required on `/chat*`. If empty and bound to loopback, the API runs without a key and logs a warning. If empty and bound to any other host, the API refuses to start. |
 | `AGENT_API_HOST` / `AGENT_API_PORT` | `127.0.0.1` / `8000` | Bind address. |
-| `AGENT_ALLOWED_ORIGINS` | `http://localhost:5173` | Comma-separated CORS allowlist (never `*`). |
+| `AGENT_ALLOWED_ORIGINS` | `http://localhost:8080` | Comma-separated CORS allowlist (never `*`). |
 | `AGENT_RATE_LIMIT_PER_MINUTE` | `10` | Requests per client IP per minute. |
 | `AGENT_MAX_REQUEST_CHARS` | `2000` | Maximum characters in the `request` field. |
 | `AGENT_MAX_BODY_BYTES` | `16384` | Maximum request body size. |

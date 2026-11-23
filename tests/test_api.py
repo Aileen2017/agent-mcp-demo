@@ -134,11 +134,11 @@ def test_cors_allows_the_configured_origin_only(client: TestClient) -> None:
     allowed = client.options(
         "/chat",
         headers={
-            "Origin": "http://localhost:5173",
+            "Origin": "http://localhost:8080",
             "Access-Control-Request-Method": "POST",
         },
     )
-    assert allowed.headers.get("access-control-allow-origin") == "http://localhost:5173"
+    assert allowed.headers.get("access-control-allow-origin") == "http://localhost:8080"
 
     blocked = client.options(
         "/chat",
