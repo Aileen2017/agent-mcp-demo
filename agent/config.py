@@ -29,7 +29,7 @@ API_KEY = os.getenv("AGENT_API_KEY", "").strip()
 # Never "*": these endpoints are authenticated and reach tools that mutate state.
 ALLOWED_ORIGINS = [
     origin.strip()
-    for origin in os.getenv("AGENT_ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+    for origin in os.getenv("AGENT_ALLOWED_ORIGINS", "http://localhost:8080").split(",")
     if origin.strip()
 ]
 

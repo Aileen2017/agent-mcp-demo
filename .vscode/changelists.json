@@ -3,10 +3,9 @@
     {
       "name": "Default",
       "files": [
-        "infra/terraform/lambda/env/dev.tfvars",
-        "infra/terraform/lambda/env/qa.tfvars",
+        "infra/terraform/env/dev.tfvars",
         ".vscode/changelists.json",
-        "infra/terraform/env/qa.tfvars"
+        "agent/config.py"
       ]
     }
   ],
