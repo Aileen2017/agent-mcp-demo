@@ -228,7 +228,8 @@ jobs:
     # Only build once the tests have passed and any in-flight Infra run has succeeded;
     # skip if either job failed, timed out or was cancelled.
     needs: test
-    if: ${{ !cancelled() && needs.test.result == 'success' }}
+    # if: ${{ !cancelled() && needs.test.result == 'success' }}
+    if: false
     runs-on: ubuntu-latest
     environment: infra-nonprod
     env:
@@ -311,7 +312,8 @@ jobs:
   deploy:
     # Point the ECS services at the image build just pushed.
     needs: build
-    if: ${{ !cancelled() && needs.build.result == 'success' }}
+    # if: ${{ !cancelled() && needs.build.result == 'success' }}
+    if: false
     runs-on: ubuntu-latest
     environment: infra-nonprod
     # One apply per environment at a time; the S3 state lock also guards against infra.yml.
