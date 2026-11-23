@@ -207,22 +207,22 @@ jobs:
 
 
         
-      - name: Terraform init (lambda)
-        working-directory: infra/terraform/lambda
-        run: terraform init -backend-config="key=mcp-demo-lambda/$ENVIRONMENT/terraform.tfstate"
-
-      - name: Terraform format check (lambda)
-        working-directory: infra/terraform/lambda
-        run: terraform fmt -check -recursive
-
-      - name: Terraform validate (lambda)
-        working-directory: infra/terraform/lambda
-        run: terraform validate
-
-      - name: Terraform plan (lambda)
-        working-directory: infra/terraform/lambda
-        run: terraform plan -var-file="env/$ENVIRONMENT.tfvars" -out=tfplan.tfplan
-
-      - name: Terraform apply (lambda)
-        working-directory: infra/terraform/lambda
-        run: terraform apply tfplan.tfplan
+      # - name: Terraform init (lambda)
+      #   working-directory: infra/terraform/lambda
+      #   run: terraform init -backend-config="key=mcp-demo-lambda/$ENVIRONMENT/terraform.tfstate"
+      #
+      # - name: Terraform format check (lambda)
+      #   working-directory: infra/terraform/lambda
+      #   run: terraform fmt -check -recursive
+      #
+      # - name: Terraform validate (lambda)
+      #   working-directory: infra/terraform/lambda
+      #   run: terraform validate
+      #
+      # - name: Terraform plan (lambda)
+      #   working-directory: infra/terraform/lambda
+      #   run: terraform plan -var-file="env/$ENVIRONMENT.tfvars" -out=tfplan.tfplan
+      #
+      # - name: Terraform apply (lambda)
+      #   working-directory: infra/terraform/lambda
+      #   run: terraform apply tfplan.tfplan

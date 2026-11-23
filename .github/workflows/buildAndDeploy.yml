@@ -115,7 +115,8 @@ jobs:
     # Build the Lambda zip with scripts/build_lambda_zip.py (dependencies resolved for Lambda's
     # Linux x86_64 runtime). Runs alongside the Docker build once the tests have passed.
     needs: test
-    if: ${{ !cancelled() && needs.test.result == 'success' && !(github.ref_type == 'tag' && contains(github.ref_name, 'destroy')) }}
+    #if: ${{ !cancelled() && needs.test.result == 'success' && !(github.ref_type == 'tag' && contains(github.ref_name, 'destroy')) }}
+    if: false
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -150,8 +151,9 @@ jobs:
   deploy-lambda:
     # Copy the Lambda zip from build-lambda into the artifacts bucket that infra/terraform/lambda creates.
     # Needs build too, only to reuse its environment output (the same dev/qa choice as the ECS deploy).
+    if: false
     needs: [build-lambda]
-    if: ${{ !cancelled() && needs['build-lambda'].result == 'success' && needs.build.result == 'success' }}
+    # if: ${{ !cancelled() && needs['build-lambda'].result == 'success' && needs.build.result == 'success' }}
     runs-on: ubuntu-latest
     environment: infra-nonprod
     concurrency:
