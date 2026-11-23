@@ -3,9 +3,10 @@
     {
       "name": "Default",
       "files": [
-        "infra/infra-shared/env/qa.tfvars",
+        "infra/terraform/lambda/env/dev.tfvars",
+        "infra/terraform/lambda/env/qa.tfvars",
         ".vscode/changelists.json",
-        "infra/infra-shared/env/dev.tfvars"
+        "infra/terraform/env/qa.tfvars"
       ]
     }
   ],

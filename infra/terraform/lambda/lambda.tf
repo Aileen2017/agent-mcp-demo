@@ -116,3 +116,11 @@ resource "aws_lambda_permission" "agent_public_url" {
   principal              = "*"
   function_url_auth_type = "NONE"
 }
+
+# Lambda also needs InvokeFunction for a NONE-auth Function URL, or it returns 403 Forbidden.
+resource "aws_lambda_permission" "agent_public_invoke" {
+  statement_id  = "AllowPublicInvokeFunction"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.agent.function_name
+  principal     = "*"
+}

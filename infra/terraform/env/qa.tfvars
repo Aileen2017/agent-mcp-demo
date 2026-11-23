@@ -4,7 +4,7 @@
 environment = "qa"
 
 agent_model      = "bedrock"
-bedrock_model_id = "eu.anthropic.claude-sonnet-4-5-20250929-v1:0"
+bedrock_model_id = "global.amazon.nova-2-lite-v1:0"
 
 # CORS origins the agent API accepts (never "*").
 allowed_origins = "https://example.com"
