@@ -14,5 +14,5 @@ acm_certificate_arn = ""
 
 task_cpu            = 512
 task_memory         = 1024
-agent_desired_count = 1
-mcp_desired_count   = 1
+agent_desired_count = 0
+mcp_desired_count   = 0

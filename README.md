@@ -205,6 +205,7 @@ that bucket; the functions load their code from S3.
 Once deployed, call the agent's public Function URL exactly like the local API — the
 `X-API-Key` header still applies:
 
+
 ```powershell
 $body = '{"request":"Book me 5 nights in Barcelona in three weeks and add it to my calendar"}'
 curl -H "X-API-Key: $env:AGENT_API_KEY" -H "Content-Type: application/json" -d $body `
