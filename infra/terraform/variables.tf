@@ -66,11 +66,11 @@ variable "task_memory" {
 variable "agent_desired_count" {
   description = "Number of agent API tasks."
   type        = number
-  default     = 1
+  default     = 0
 }
 
 variable "mcp_desired_count" {
   description = "Number of tasks per MCP server."
   type        = number
-  default     = 1
+  default     = 0
 }
