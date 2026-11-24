@@ -1,0 +1,23 @@
+{
+  "mcpServers": {
+    "ecs-mcp": {
+      "disabled": false,
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "--python",
+        "3.12",
+        "--from",
+        "mcp-proxy-for-aws@latest",
+        "mcp-proxy-for-aws.exe",
+        "https://ecs-mcp.eu-west-2.api.aws/mcp",
+        "--service",
+        "ecs-mcp",
+        "--profile",
+        "default",
+        "--region",
+        "eu-west-2"
+      ]
+    }
+  }
+}

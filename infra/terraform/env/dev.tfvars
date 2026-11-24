@@ -4,9 +4,9 @@
 environment = "dev"
 
 agent_model      = "bedrock"
-bedrock_model_id = "eu.anthropic.claude-sonnet-4-5-20250929-v1:0"
+bedrock_model_id = "global.amazon.nova-2-lite-v1:0"
 
-# CORS origins the agent API accepts (never "*").
+# CORS origins the agent API accepts (never "*"). used if calling agent from web browser, a dummy value for now
 allowed_origins = "https://example.com"
 
 # Empty serves HTTP on port 80. Set an ACM certificate ARN in eu-west-2 for HTTPS on 443.

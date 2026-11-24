@@ -3,9 +3,10 @@
     {
       "name": "Default",
       "files": [
-        ".gitignore",
-        "chat.json",
-        ".vscode/changelists.json"
+        ".mcp.json",
+        ".vscode/changelists.json",
+        ".github/workflows/buildAndDeploy.yml",
+        "README.md"
       ]
     }
   ],

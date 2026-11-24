@@ -22,7 +22,8 @@ jobs:
     # Same required reviewers as a deploy, so a destroy also waits for approval.
     environment: infra-nonprod
     permissions:
-      contents: read
+      # Write is needed only for the tag step below.
+      contents: write
     defaults:
       run:
         working-directory: infra/terraform
@@ -73,3 +74,13 @@ jobs:
 
       - name: Terraform destroy
         run: terraform apply destroy.tfplan
+
+      - name: Tag the destroy
+        # Lightweight tag on the commit that ran the destroy. Pushes made with GITHUB_TOKEN do not
+        # trigger workflows, so a tag containing "destroy" here does not start another run.
+        working-directory: ${{ github.workspace }}
+        run: |
+          TAG="destroy-${ENVIRONMENT}-${GITHUB_RUN_NUMBER}"
+          git tag "$TAG" "$GITHUB_SHA"
+          git push origin "refs/tags/$TAG"
+          echo "Pushed tag $TAG"

@@ -11,7 +11,11 @@ data "aws_subnets" "public" {
     values = [data.aws_vpc.main.id]
   }
 
-  tags = { Name = "${var.project}-${local.environment2}-public-*" }
+  # The tags argument matches exact values only; wildcards need an EC2 filter on tag:Name.
+  filter {
+    name   = "tag:Name"
+    values = ["${var.project}-${local.environment2}-public-*"]
+  }
 }
 
 data "aws_ecr_repository" "app" {

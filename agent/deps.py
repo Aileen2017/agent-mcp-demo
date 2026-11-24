@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastmcp.client import Client
 from fastmcp.client.group import ClientGroup
 
+from agent.aws_auth import make_mcp_client
 from agent.config import CALENDAR_SERVER_URL, FLIGHT_SERVER_URL
 from agent.context import build_system_prompt
 
@@ -36,7 +36,7 @@ def build_client_group(
 ) -> ClientGroup:
     """One independent client per server, so concurrent runs never share a session."""
     flight, calendar = _resolve(flight_target, calendar_target)
-    return ClientGroup({"flights": Client(flight), "calendar": Client(calendar)})
+    return ClientGroup({"flights": make_mcp_client(flight), "calendar": make_mcp_client(calendar)})
 
 
 async def get_system_prompt(

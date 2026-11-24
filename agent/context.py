@@ -11,6 +11,7 @@ from typing import Any
 
 from fastmcp import Client
 
+from agent.aws_auth import make_mcp_client
 from agent.config import CALENDAR_SERVER_URL, FLIGHT_SERVER_URL
 
 TOOL_CONTRACT = """\
@@ -54,7 +55,7 @@ async def _render_prompt(client: Client, name: str, arguments: dict[str, str]) -
 
 
 async def _flight_context(target: Any) -> str:
-    async with Client(target) as client:
+    async with make_mcp_client(target) as client:
         airports = await _read_resource(client, "flights://airports")
         policy = await _read_resource(client, "flights://policy")
         guidance = await _render_prompt(
@@ -70,7 +71,7 @@ async def _flight_context(target: Any) -> str:
 
 
 async def _calendar_context(target: Any) -> str:
-    async with Client(target) as client:
+    async with make_mcp_client(target) as client:
         config = await _read_resource(client, "calendar://config")
         guidance = await _render_prompt(
             client,
